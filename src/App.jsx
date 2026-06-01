@@ -183,7 +183,7 @@ const defaultData = {
   r2bLog: [],
   appNotes: [],
   challenges: [],
-  scores: [],
+  scores: [{id:1001,player:"Rob",course:"Millenium",holes:18,score:9,date:"11/11/2025"},{id:1002,player:"Rob",course:"Royal Ostend",holes:18,score:6,date:"12/10/2025"},{id:1003,player:"Rob",course:"Damme",holes:18,score:10,date:"11/10/2025"},{id:1004,player:"Rob",course:"Rigenee",holes:18,score:9,date:"10/10/2025"},{id:1005,player:"Rob",course:"Millenium",holes:18,score:11,date:"22/08/2025"},{id:1006,player:"Rob",course:"Millenium",holes:18,score:10,date:"15/07/2025"},{id:1007,player:"Rob",course:"Millenium",holes:18,score:7,date:"11/07/2025"},{id:1008,player:"Rob",course:"Millenium",holes:18,score:2,date:"29/06/2025"},{id:1009,player:"Rob",course:"Millenium",holes:18,score:7,date:"27/06/2025"},{id:1010,player:"Rob",course:"Millenium",holes:18,score:7,date:"09/06/2025"},{id:1011,player:"Rob",course:"Millenium",holes:18,score:5,date:"06/06/2025"},{id:1012,player:"Rob",course:"Millenium",holes:18,score:10,date:"25/05/2025"},{id:1013,player:"Rob",course:"Millenium",holes:18,score:8,date:"15/05/2025"},{id:1014,player:"Rob",course:"Millenium",holes:18,score:9,date:"11/05/2025"},{id:1015,player:"Rob",course:"Millenium",holes:18,score:15,date:"08/05/2025"},{id:1016,player:"Rob",course:"Millenium",holes:18,score:7,date:"26/04/2025"},{id:1017,player:"Rob",course:"Millenium",holes:18,score:6,date:"23/03/2025"},{id:1018,player:"Rob",course:"Millenium",holes:18,score:6,date:"20/03/2025"},{id:1019,player:"Rob",course:"Millenium",holes:9,score:6,date:"01/03/2025"}],
   records: {
     courses: [
       { course:"Millenium 18", sub:null,  Rob:"+2",  Joost:"+1", Thomas:"+4", Joris:"+8" },
@@ -1106,7 +1106,7 @@ function RecordsTab({data,save}){
 function ChallengesTab({data,save}){
   const challenges = data.challenges||[];
   const [showForm,setShowForm] = useState(false);
-  const [form,setForm] = useState({title:"",desc:""});
+  const [form,setForm] = useState({title:"",desc:"",addedBy:""});
   const [editId,setEditId] = useState(null);
 
   const addOrEdit = () => {
@@ -1117,7 +1117,7 @@ function ChallengesTab({data,save}){
     } else {
       save({...data,challenges:[...challenges,{id:Date.now(),title:form.title,desc:form.desc,done:{}}]});
     }
-    setForm({title:"",desc:""});
+    setForm({title:"",desc:"",addedBy:""});
     setShowForm(false);
   };
 
@@ -1175,7 +1175,7 @@ function ChallengesTab({data,save}){
 
       {/* Add / Edit form */}
       <div style={{display:"flex",justifyContent:"flex-end"}}>
-        <button onClick={()=>{setShowForm(v=>!v);setEditId(null);setForm({title:"",desc:""}); }} style={{background:"#f472b6",color:"#0a0510",padding:"11px 18px",borderRadius:10,fontFamily:"'DM Sans',sans-serif",fontWeight:700,fontSize:14,border:"none",cursor:"pointer"}}>
+        <button onClick={()=>{setShowForm(v=>!v);setEditId(null);setForm({title:"",desc:"",addedBy:""}); }} style={{background:"#f472b6",color:"#0a0510",padding:"11px 18px",borderRadius:10,fontFamily:"'DM Sans',sans-serif",fontWeight:700,fontSize:14,border:"none",cursor:"pointer"}}>
           {showForm&&editId===null?"✕ Annuleer":"+ Nieuwe Challenge"}
         </button>
       </div>
@@ -1193,6 +1193,13 @@ function ChallengesTab({data,save}){
             <div>
               <label style={{fontSize:11,color:"#6b7563",fontFamily:"'DM Sans',sans-serif",letterSpacing:1,display:"block",marginBottom:5}}>BESCHRIJVING</label>
               <textarea className="input" value={form.desc} onChange={e=>setForm(f=>({...f,desc:e.target.value}))} placeholder="Leg de challenge uit..." rows={3} style={{resize:"vertical",minHeight:70}}/>
+            </div>
+            <div>
+              <label style={{fontSize:11,color:"#6b7563",fontFamily:"'DM Sans',sans-serif",letterSpacing:1,display:"block",marginBottom:5}}>TOEGEVOEGD DOOR</label>
+              <select className="input" value={form.addedBy} onChange={e=>setForm(f=>({...f,addedBy:e.target.value}))}>
+                <option value="">— kies speler —</option>
+                {PLAYERS.map(p=><option key={p} value={p}>{p}</option>)}
+              </select>
             </div>
             <button onClick={addOrEdit} disabled={!form.title.trim()} style={{background:form.title.trim()?"#f472b6":"#3a1a2e",color:form.title.trim()?"#0a0510":"#6b7563",padding:"12px",borderRadius:9,fontFamily:"'DM Sans',sans-serif",fontWeight:700,fontSize:14,cursor:form.title.trim()?"pointer":"default",border:"none"}}>
               {editId!==null?"Opslaan":"Challenge Toevoegen"}
@@ -1214,9 +1221,10 @@ function ChallengesTab({data,save}){
           <div key={c.id} className="card" style={{borderColor:allDone?"#e8a838":"#1e2a1e"}}>
             <div style={{display:"flex",alignItems:"flex-start",gap:10,marginBottom:10}}>
               <div style={{flex:1}}>
-                <div style={{fontWeight:700,fontSize:15,marginBottom:c.desc?4:0,display:"flex",alignItems:"center",gap:8}}>
+                <div style={{fontWeight:700,fontSize:15,marginBottom:c.desc?4:0,display:"flex",alignItems:"center",gap:8,flexWrap:"wrap"}}>
                   {allDone&&<span style={{color:"#e8a838"}}>🏆</span>}
                   {c.title}
+                  {c.addedBy&&<span style={{fontSize:11,fontFamily:"'DM Sans',sans-serif",fontWeight:400,color:PC[c.addedBy]||"#6b7563",background:`${PC[c.addedBy]||"#6b7563"}18`,padding:"2px 7px",borderRadius:4}}>door {c.addedBy}</span>}
                 </div>
                 {c.desc&&<div style={{fontFamily:"'DM Sans',sans-serif",fontSize:13,color:"#8a9a88",lineHeight:1.5}}>{c.desc}</div>}
               </div>
@@ -1253,6 +1261,10 @@ function ScoresTab({data,save}){
   const [showForm,setShowForm] = useState(false);
   const [form,setForm] = useState({player:"Rob",course:"Millenium",score:"",holes:18,date:"",customCourse:""});
   const [viewPlayer,setViewPlayer] = useState("all");
+  const [filterPlayer,setFilterPlayer] = useState("all");
+  const [filterCourse,setFilterCourse] = useState("all");
+  const [sortCol,setSortCol] = useState("date");
+  const [sortDir,setSortDir] = useState("desc");
   const parseDate = str=>{ if(!str)return 0; const p=str.split('/'); return p.length===3?new Date(+p[2],+p[1]-1,+p[0]).getTime():0; };
 
   const addScore = () => {
@@ -1454,8 +1466,9 @@ function ScoresTab({data,save}){
 
         {viewPlayer==="all"&&(()=>{
           // Build cross-player course averages (18H only)
-          const allCourses=[...new Set(scores.filter(s=>s.holes===18).map(s=>s.course))].sort();
+          const allCourses=[...new Set(scores.filter(s=>s.holes===18).map(s=>s.course))].filter(c=>totalRoundsOnCourse(c)>1).sort();
           if(allCourses.length===0) return null;
+          const totalRoundsOnCourse=(course)=>scores.filter(s=>s.holes===18&&s.course===course).length;
           const cellAvg=(course,player)=>{
             const vals=scores.filter(s=>s.holes===18&&s.course===course&&s.player===player).map(s=>s.score);
             return vals.length?avg(vals):null;
@@ -1485,25 +1498,92 @@ function ScoresTab({data,save}){
         })()}
 
         <div className="card">
-          <div style={{fontSize:12,color:viewPlayer==="all"?"#e8e4d8":PC[viewPlayer],fontFamily:"'DM Sans',sans-serif",letterSpacing:2,textTransform:"uppercase",marginBottom:10}}>
-            📋 {viewPlayer==="all"?"Alle Rondes":"Rondes van "+viewPlayer}
-            <span style={{fontFamily:"'DM Sans',sans-serif",fontSize:11,color:"#4b5563",marginLeft:8,letterSpacing:0,textTransform:"none"}}>({playerSc.length})</span>
-          </div>
-          {playerSc.length===0
-            ?<div style={{color:"#4b5563",fontFamily:"'DM Sans',sans-serif",fontSize:13}}>Nog geen rondes ingevoerd.</div>
-            :<div style={{maxHeight:420,overflowY:"auto"}}>
-              {playerSc.map((s,i)=>(
-                <div key={s.id||i} style={{display:"flex",alignItems:"center",gap:8,padding:"8px 0",borderBottom:"1px solid #131a14",fontFamily:"'DM Sans',sans-serif",fontSize:13}}>
-                  <span className="fade" style={{width:82,flexShrink:0,fontSize:12}}>{s.date}</span>
-                  {viewPlayer==="all"&&<span style={{width:52,flexShrink:0,fontWeight:600,color:PC[s.player]||"#e8e4d8",fontSize:12}}>{s.player}</span>}
-                  <span style={{flex:1,color:"#8a9a88",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{s.course}</span>
-                  <span className="tag" style={{background:"#0a1a2e",color:"#60a5fa",flexShrink:0}}>{s.holes}H</span>
-                  <span style={{fontWeight:700,color:viewPlayer==="all"?PC[s.player]:PC[viewPlayer],fontSize:15,minWidth:30,textAlign:"right"}}>{s.score===0?"E":s.score>0?"+"+s.score:s.score}</span>
-                  <button onClick={()=>removeScore(s.id)} style={{background:"none",border:"none",color:"#4b5563",cursor:"pointer",fontSize:17,padding:"0 4px",lineHeight:1}}>×</button>
+          {viewPlayer==="all"&&(()=>{
+            const allCourses=[...new Set(scores.map(s=>s.course))].sort();
+            const toggleSort=(col)=>{ if(sortCol===col){setSortDir(d=>d==="asc"?"desc":"asc");}else{setSortCol(col);setSortDir("desc");} };
+            const arrow=(col)=>sortCol===col?(sortDir==="desc"?"↓":"↑"):"↕";
+            const filtered=scores
+              .filter(s=>filterPlayer==="all"||s.player===filterPlayer)
+              .filter(s=>filterCourse==="all"||s.course===filterCourse)
+              .sort((a,b)=>{
+                let av,bv;
+                if(sortCol==="date"){av=parseDate(a.date);bv=parseDate(b.date);}
+                else if(sortCol==="score"){av=a.score;bv=b.score;}
+                else if(sortCol==="holes"){av=a.holes;bv=b.holes;}
+                else if(sortCol==="player"){av=a.player;bv=b.player;}
+                else if(sortCol==="course"){av=a.course;bv=b.course;}
+                else{av=0;bv=0;}
+                if(av<bv)return sortDir==="asc"?-1:1;
+                if(av>bv)return sortDir==="asc"?1:-1;
+                return 0;
+              });
+            return(
+              <>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10,flexWrap:"wrap",gap:8}}>
+                <div style={{fontSize:12,color:"#e8e4d8",fontFamily:"'DM Sans',sans-serif",letterSpacing:2,textTransform:"uppercase"}}>
+                  📋 Alle Rondes <span style={{fontSize:11,color:"#4b5563",letterSpacing:0,textTransform:"none"}}>({filtered.length})</span>
                 </div>
-              ))}
+                <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
+                  <select value={filterPlayer} onChange={e=>setFilterPlayer(e.target.value)} className="input" style={{width:"auto",fontSize:12,padding:"5px 8px"}}>
+                    <option value="all">Alle spelers</option>
+                    {PLAYERS.map(p=><option key={p} value={p}>{p}</option>)}
+                  </select>
+                  <select value={filterCourse} onChange={e=>setFilterCourse(e.target.value)} className="input" style={{width:"auto",fontSize:12,padding:"5px 8px"}}>
+                    <option value="all">Alle banen</option>
+                    {allCourses.map(c=><option key={c} value={c}>{c}</option>)}
+                  </select>
+                </div>
+              </div>
+              {filtered.length===0
+                ?<div style={{color:"#4b5563",fontFamily:"'DM Sans',sans-serif",fontSize:13}}>Geen rondes gevonden.</div>
+                :<div style={{overflowX:"auto",maxHeight:480,overflowY:"auto"}}>
+                  <table style={{minWidth:380}}>
+                    <thead><tr>
+                      {[["date","Datum"],["player","Speler"],["course","Baan"],["holes","H"],["score","Score"]].map(([col,lbl])=>(
+                        <th key={col} onClick={()=>toggleSort(col)} style={{cursor:"pointer",userSelect:"none",color:sortCol===col?"#e8e4d8":"#6b7563",whiteSpace:"nowrap"}}>
+                          {lbl} <span style={{fontSize:10,opacity:0.7}}>{arrow(col)}</span>
+                        </th>
+                      ))}
+                      <th></th>
+                    </tr></thead>
+                    <tbody>{filtered.map((s,i)=>(
+                      <tr key={s.id||i}>
+                        <td className="fade" style={{fontSize:12,whiteSpace:"nowrap"}}>{s.date}</td>
+                        <td style={{fontWeight:600,color:PC[s.player]||"#e8e4d8",fontFamily:"'DM Sans',sans-serif"}}>{s.player}</td>
+                        <td style={{color:"#8a9a88",fontFamily:"'DM Sans',sans-serif",fontSize:13}}>{s.course}</td>
+                        <td><span className="tag" style={{background:"#0a1a2e",color:"#60a5fa"}}>{s.holes}H</span></td>
+                        <td style={{fontWeight:700,color:PC[s.player]||"#e8e4d8",fontSize:15,textAlign:"right"}}>{s.score===0?"E":s.score>0?"+"+s.score:s.score}</td>
+                        <td><button onClick={()=>removeScore(s.id)} style={{background:"none",border:"none",color:"#4b5563",cursor:"pointer",fontSize:17,padding:"0 4px",lineHeight:1}}>×</button></td>
+                      </tr>
+                    ))}</tbody>
+                  </table>
+                </div>
+              }
+              </>
+            );
+          })()}
+          {viewPlayer!=="all"&&(
+            <>
+            <div style={{fontSize:12,color:PC[viewPlayer],fontFamily:"'DM Sans',sans-serif",letterSpacing:2,textTransform:"uppercase",marginBottom:10}}>
+              📋 Rondes van {viewPlayer}
+              <span style={{fontFamily:"'DM Sans',sans-serif",fontSize:11,color:"#4b5563",marginLeft:8,letterSpacing:0,textTransform:"none"}}>({playerSc.length})</span>
             </div>
-          }
+            {playerSc.length===0
+              ?<div style={{color:"#4b5563",fontFamily:"'DM Sans',sans-serif",fontSize:13}}>Nog geen rondes ingevoerd.</div>
+              :<div style={{maxHeight:420,overflowY:"auto"}}>
+                {playerSc.map((s,i)=>(
+                  <div key={s.id||i} style={{display:"flex",alignItems:"center",gap:8,padding:"8px 0",borderBottom:"1px solid #131a14",fontFamily:"'DM Sans',sans-serif",fontSize:13}}>
+                    <span className="fade" style={{width:82,flexShrink:0,fontSize:12}}>{s.date}</span>
+                    <span style={{flex:1,color:"#8a9a88",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{s.course}</span>
+                    <span className="tag" style={{background:"#0a1a2e",color:"#60a5fa",flexShrink:0}}>{s.holes}H</span>
+                    <span style={{fontWeight:700,color:PC[viewPlayer],fontSize:15,minWidth:30,textAlign:"right"}}>{s.score===0?"E":s.score>0?"+"+s.score:s.score}</span>
+                    <button onClick={()=>removeScore(s.id)} style={{background:"none",border:"none",color:"#4b5563",cursor:"pointer",fontSize:17,padding:"0 4px",lineHeight:1}}>×</button>
+                  </div>
+                ))}
+              </div>
+            }
+            </>
+          )}
         </div>
         </>
       )}
