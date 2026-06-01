@@ -180,6 +180,7 @@ const defaultData = {
     {year:2021,venue:"Postel",results:["Rob","Joost","Thomas","Joris"],scores:{Rob:15,Joost:18,Thomas:null,Joris:27},notes:"1ste editie in Postel. Afschuwelijke greens, ongeziene hoeveelheid 3 en 4-putts."},
   ],
   ryderCup: [],
+  r2bLog: [],
   appNotes: [],
   challenges: [],
   scores: [],
@@ -195,6 +196,9 @@ const defaultData = {
       { course:"Ternesse",        sub:null,  Rob:"",    Joost:"",   Thomas:"",   Joris:""   },
       { course:"Ternesse",        sub:"Front",Rob:"",   Joost:"",   Thomas:"",   Joris:""   },
       { course:"Ternesse",        sub:"Back", Rob:"",   Joost:"",   Thomas:"",   Joris:""   },
+      { course:"Rigenee",         sub:null,   Rob:"",   Joost:"",   Thomas:"",   Joris:""   },
+      { course:"Rigenee",         sub:"Front",Rob:"",   Joost:"",   Thomas:"",   Joris:""   },
+      { course:"Rigenee",         sub:"Back", Rob:"",   Joost:"",   Thomas:"",   Joris:""   },
     ],
     stats: [
       { label:"70's streak",      Rob:"4",  Joost:"1", Thomas:"2",  Joris:"0"  },
@@ -392,14 +396,7 @@ function Dashboard({data}){
     ...(data.usOpen||[]).filter(e=>new Date(e.year,11,31)>=threeMonthsAgo).map(e=>({date:e.venue?`${e.year} · ${e.venue}`:String(e.year),label:"US Open",winner:e.results[0],type:"US Open",sortDate:new Date(e.year,11,31)})),
     ...(data.zeroSum||[]).filter(m=>{const d=parseDate(m.date);return d&&d>=threeMonthsAgo;}).map(m=>({date:m.date,label:`${m.p1} vs ${m.p2}${m.margin?" ("+m.margin+")":""}`,winner:m.winner,type:"Zero Sum",sortDate:parseDate(m.date)})),
     ...(data.scores||[]).filter(s=>{const d=parseDate(s.date);return d&&d>=threeMonthsAgo;}).map(s=>({date:s.date,label:`${s.player} — ${s.course} (${s.holes}H)`,score:s.score,player:s.player,type:"Score",sortDate:parseDate(s.date)})),
-    ...(()=>{
-      const latest=Object.keys(data.r2b).sort().reverse()[0];
-      if(!latest)return[];
-      const sd=data.r2b[latest];
-      const events=[];
-      PLAYERS.forEach(p=>{(sd.holes[p]||[]).forEach((v,i)=>{if(v)events.push({label:`R2B ${p} — birdie hole ${i+1}`,type:"R2B",player:p,sortDate:new Date(0)});});});
-      return events;
-    })(),
+    ...(data.r2bLog||[]).filter(e=>{const d=parseDate(e.date);return d&&d>=threeMonthsAgo;}).map(e=>({label:`R2B ${e.player} — birdie hole ${e.hole}`,type:"R2B",player:e.player,sortDate:parseDate(e.date)})),
     ...(data.challenges||[]).flatMap(c=>PLAYERS.filter(p=>c.done[p]).map(p=>({label:`Challenge: ${p} — ${c.title}`,type:"Challenge",player:p,sortDate:new Date(0)}))),
   ].sort((a,b)=>b.sortDate-a.sortDate).slice(0,18);
 
@@ -654,8 +651,22 @@ function R2BTab({data,save}){
 
   const toggleHole=(player,idx)=>{
     const nh=[...(sd.holes[player]||Array(18).fill(0))];
-    nh[idx]=nh[idx]?0:1;
-    save({...data,r2b:{...data.r2b,[season]:{...sd,holes:{...sd.holes,[player]:nh}}}});
+    const wasOn=nh[idx]===1;
+    nh[idx]=wasOn?0:1;
+    const today=new Date();
+    const dd=String(today.getDate()).padStart(2,'0');
+    const mm=String(today.getMonth()+1).padStart(2,'0');
+    const yyyy=today.getFullYear();
+    const dateStr=`${dd}/${mm}/${yyyy}`;
+    const log=data.r2bLog||[];
+    let newLog;
+    if(wasOn){
+      // Remove the entry for this player+hole
+      newLog=log.filter(e=>!(e.player===player&&e.hole===idx+1&&e.season===season));
+    } else {
+      newLog=[...log,{player,hole:idx+1,season,date:dateStr,id:Date.now()}];
+    }
+    save({...data,r2b:{...data.r2b,[season]:{...sd,holes:{...sd.holes,[player]:nh}}},r2bLog:newLog});
   };
   const updateCounter=(field,player,val)=>{
     const v=Math.max(0,parseInt(val)||0);
@@ -1393,6 +1404,38 @@ function ScoresTab({data,save}){
           </>
         );})()}
 
+        {viewPlayer==="all"&&(()=>{
+          // Build cross-player course averages (18H only)
+          const allCourses=[...new Set(scores.filter(s=>s.holes===18).map(s=>s.course))].sort();
+          if(allCourses.length===0) return null;
+          const cellAvg=(course,player)=>{
+            const vals=scores.filter(s=>s.holes===18&&s.course===course&&s.player===player).map(s=>s.score);
+            return vals.length?avg(vals):null;
+          };
+          return(
+            <div className="card">
+              <div style={{fontSize:12,color:"#a78bfa",fontFamily:"'DM Sans',sans-serif",letterSpacing:2,textTransform:"uppercase",marginBottom:10}}>⛳ Gemiddelde per baan (18H)</div>
+              <div style={{overflowX:"auto"}}>
+                <table style={{minWidth:320}}>
+                  <thead><tr>
+                    <th>Baan</th>
+                    {PLAYERS.map(p=><th key={p} style={{color:PC[p],textAlign:"center"}}>{p}</th>)}
+                  </tr></thead>
+                  <tbody>{allCourses.map(course=>(
+                    <tr key={course}>
+                      <td style={{fontFamily:"'DM Sans',sans-serif",color:"#e8e4d8",fontSize:13}}>{course}</td>
+                      {PLAYERS.map(p=>{
+                        const v=cellAvg(course,p);
+                        return <td key={p} style={{textAlign:"center",fontFamily:"'DM Sans',sans-serif",fontWeight:v!==null?700:400,color:v!==null?PC[p]:"#2a3a2a",fontSize:13}}>{v!==null?v:"—"}</td>;
+                      })}
+                    </tr>
+                  ))}</tbody>
+                </table>
+              </div>
+            </div>
+          );
+        })()}
+
         <div className="card">
           <div style={{fontSize:12,color:viewPlayer==="all"?"#e8e4d8":PC[viewPlayer],fontFamily:"'DM Sans',sans-serif",letterSpacing:2,textTransform:"uppercase",marginBottom:10}}>
             📋 {viewPlayer==="all"?"Alle Rondes":"Rondes van "+viewPlayer}
@@ -1482,19 +1525,29 @@ function TornooienTab({data,save}){
         </div>
       </div>
 
-      {/* Ryder cup mini */}
+      {/* Medals breakdown */}
       <div className="card">
-        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
-          <div style={{fontSize:12,color:"#60a5fa",fontFamily:"'DM Sans',sans-serif",letterSpacing:2,textTransform:"uppercase"}}>⛳ Ryder Cup Wins</div>
-          <button onClick={()=>setView("ryder")} style={{background:"#0a1a2e",border:"1px solid #1a2a3e",color:"#60a5fa",padding:"5px 11px",borderRadius:7,fontFamily:"'DM Sans',sans-serif",fontSize:12,cursor:"pointer"}}>Details →</button>
-        </div>
-        <div style={{display:"flex",gap:10,flexWrap:"wrap"}}>
-          {ryderSorted.map((p,i)=>(
-            <div key={p} style={{textAlign:"center",flex:1,minWidth:60}}>
-              <div style={{fontSize:10,color:"#6b7563",fontFamily:"'DM Sans',sans-serif"}}>{me[i]} {p}</div>
-              <div style={{fontSize:20,fontWeight:800,color:PC[p]}}>{ryderWins[p]}</div>
-            </div>
-          ))}
+        <div style={{fontSize:12,color:"#a78bfa",fontFamily:"'DM Sans',sans-serif",letterSpacing:2,textTransform:"uppercase",marginBottom:10}}>🏅 Medailles Overzicht (Masters + US Open)</div>
+        <div style={{overflowX:"auto"}}>
+          <table style={{minWidth:300}}><thead><tr>
+            <th>Speler</th>
+            <th style={{textAlign:"center"}}>🥇</th>
+            <th style={{textAlign:"center"}}>🥈</th>
+            <th style={{textAlign:"center"}}>🥉</th>
+            <th style={{textAlign:"center"}}>💀</th>
+          </tr></thead>
+          <tbody>{allTimeSorted.map(p=>{
+            const mS=mastersStats[p]||{};const uS=usopenStats[p]||{};
+            return(
+              <tr key={p}>
+                <td style={{fontWeight:700,color:PC[p],fontFamily:"'DM Sans',sans-serif"}}>{p}</td>
+                <td style={{textAlign:"center",fontFamily:"'DM Sans',sans-serif",fontWeight:700,color:"#e8a838"}}>{(mS.p1||0)+(uS.p1||0)}</td>
+                <td style={{textAlign:"center",fontFamily:"'DM Sans',sans-serif",color:"#b0b8c8"}}>{(mS.p2||0)+(uS.p2||0)}</td>
+                <td style={{textAlign:"center",fontFamily:"'DM Sans',sans-serif",color:"#cd7f32"}}>{(mS.p3||0)+(uS.p3||0)}</td>
+                <td style={{textAlign:"center",fontFamily:"'DM Sans',sans-serif",color:"#4b5563"}}>{(mS.p4||0)+(uS.p4||0)}</td>
+              </tr>
+            );
+          })}</tbody></table>
         </div>
       </div>
 
