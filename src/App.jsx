@@ -267,7 +267,14 @@ export default function GolfApp() {
   useEffect(()=>{
     getDoc(DOC_REF).then(snap=>{
       if(snap.exists()){
-        setData({...defaultData,...snap.data()});
+        const loaded={...defaultData,...snap.data()};
+        // Migrate: add any missing course rows from defaultData
+        const existingKeys=new Set((loaded.records?.courses||[]).map(r=>r.course+"||"+(r.sub||"")));
+        const missing=defaultData.records.courses.filter(r=>!existingKeys.has(r.course+"||"+(r.sub||"")));
+        if(missing.length>0){
+          loaded.records={...loaded.records,courses:[...(loaded.records?.courses||[]),...missing]};
+        }
+        setData(loaded);
       }
       setLoading(false);
     }).catch(()=>setLoading(false));
