@@ -193,7 +193,7 @@ const defaultData = {
       { course:"Haverleij 18", sub:"Front",Rob:"+3",  Joost:"+1", Thomas:"+4", Joris:""   },
       { course:"Haverleij 18", sub:"Back", Rob:"+3",  Joost:"",   Thomas:"+1", Joris:""   },
       { course:"Gendersteyn G/R",sub:null, Rob:"+2",  Joost:"+9", Thomas:"",   Joris:"+9" },
-      { course:"Ternesse 18",     sub:null,  Rob:"",    Joost:"",   Thomas:"",   Joris:""   },
+      { course:"Ternesse 18",     sub:null,  Rob:"+9",  Joost:"",   Thomas:"",   Joris:""   },
       { course:"Ternesse 18",     sub:"Front",Rob:"",   Joost:"",   Thomas:"",   Joris:""   },
       { course:"Ternesse 18",     sub:"Back", Rob:"",   Joost:"",   Thomas:"",   Joris:""   },
       { course:"Rigenee 18",      sub:null,   Rob:"",   Joost:"",   Thomas:"",   Joris:""   },
@@ -273,6 +273,7 @@ export default function GolfApp() {
         const missing=defaultData.records.courses.filter(r=>!existingKeys.has(r.course+"||"+(r.sub||"")));
         if(missing.length>0){
           loaded.records={...loaded.records,courses:[...(loaded.records?.courses||[]),...missing]};
+          setDoc(DOC_REF, loaded).catch(()=>{});
         }
         setData(loaded);
       }
