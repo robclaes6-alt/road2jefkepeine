@@ -1112,10 +1112,10 @@ function ChallengesTab({data,save}){
   const addOrEdit = () => {
     if(!form.title.trim()) return;
     if(editId!==null){
-      save({...data,challenges:challenges.map(c=>c.id===editId?{...c,title:form.title,desc:form.desc}:c)});
+      save({...data,challenges:challenges.map(c=>c.id===editId?{...c,title:form.title,desc:form.desc,addedBy:form.addedBy}:c)});
       setEditId(null);
     } else {
-      save({...data,challenges:[...challenges,{id:Date.now(),title:form.title,desc:form.desc,done:{}}]});
+      save({...data,challenges:[...challenges,{id:Date.now(),title:form.title,desc:form.desc,addedBy:form.addedBy,done:{}}]});
     }
     setForm({title:"",desc:"",addedBy:""});
     setShowForm(false);
@@ -1139,7 +1139,7 @@ function ChallengesTab({data,save}){
 
   const removeChallenge = (id) => save({...data,challenges:challenges.filter(c=>c.id!==id)});
 
-  const startEdit = (c) => { setForm({title:c.title,desc:c.desc}); setEditId(c.id); setShowForm(true); };
+  const startEdit = (c) => { setForm({title:c.title,desc:c.desc,addedBy:c.addedBy||''}); setEditId(c.id); setShowForm(true); };
 
   // Rankings: count completions per player
   const totals = Object.fromEntries(PLAYERS.map(p=>[p,challenges.filter(c=>c.done[p]).length]));
@@ -1469,9 +1469,9 @@ function ScoresTab({data,save}){
 
         {viewPlayer==="all"&&(()=>{
           // Build cross-player course averages (18H only)
+          const totalRoundsOnCourse=(course)=>scores.filter(s=>s.holes===18&&s.course===course).length;
           const allCourses=[...new Set(scores.filter(s=>s.holes===18).map(s=>s.course))].filter(c=>totalRoundsOnCourse(c)>1).sort();
           if(allCourses.length===0) return null;
-          const totalRoundsOnCourse=(course)=>scores.filter(s=>s.holes===18&&s.course===course).length;
           const cellAvg=(course,player)=>{
             const vals=scores.filter(s=>s.holes===18&&s.course===course&&s.player===player).map(s=>s.score);
             return vals.length?avg(vals):null;
