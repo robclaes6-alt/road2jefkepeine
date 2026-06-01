@@ -389,6 +389,7 @@ function Dashboard({data}){
   const r2bRanked=[...PLAYERS].sort((a,b)=>r2bTotals[b]-r2bTotals[a]);
   const zsStandings=calcZeroSum(data.zeroSum||[]);
   const threeMonthsAgo=new Date();threeMonthsAgo.setMonth(threeMonthsAgo.getMonth()-3);
+  const [showAllFeed,setShowAllFeed]=useState(false);
 
   const me=["🥇","🥈","🥉","4️⃣"];
 
@@ -399,27 +400,37 @@ function Dashboard({data}){
     return new Date(+parts[2],+parts[1]-1,+parts[0]);
   };
   const typeColor={Masters:"#4ade80","US Open":"#60a5fa","Zero Sum":"#e8a838",Score:"#a78bfa",R2B:"#4ade80",Record:"#e8a838",Challenge:"#f472b6"};
-  const recent=[
-    ...data.masters.filter(e=>new Date(e.year,11,31)>=threeMonthsAgo).map(e=>({date:String(e.year),label:"The Masters",winner:e.results[0],type:"Masters",sortDate:new Date(e.year,11,31)})),
-    ...(data.usOpen||[]).filter(e=>new Date(e.year,11,31)>=threeMonthsAgo).map(e=>({date:e.venue?`${e.year} · ${e.venue}`:String(e.year),label:"US Open",winner:e.results[0],type:"US Open",sortDate:new Date(e.year,11,31)})),
-    ...(data.zeroSum||[]).filter(m=>{const d=parseDate(m.date);return d&&d>=threeMonthsAgo;}).map(m=>({date:m.date,label:`${m.p1} vs ${m.p2}${m.margin?" ("+m.margin+")":""}`,winner:m.winner,type:"Zero Sum",sortDate:parseDate(m.date)})),
-    ...(data.scores||[]).filter(s=>{const d=parseDate(s.date);return d&&d>=threeMonthsAgo;}).map(s=>({date:s.date,label:`${s.player} — ${s.course} (${s.holes}H)`,score:s.score,player:s.player,type:"Score",sortDate:parseDate(s.date)})),
-    ...(data.r2bLog||[]).filter(e=>{const d=parseDate(e.date);return d&&d>=threeMonthsAgo;}).map(e=>({label:`R2B ${e.player} — birdie hole ${e.hole}`,type:"R2B",player:e.player,sortDate:parseDate(e.date)})),
-    ...(data.challenges||[]).flatMap(c=>PLAYERS.filter(p=>c.done[p]).map(p=>({label:`Challenge: ${p} — ${c.title}`,type:"Challenge",player:p,sortDate:new Date(0)}))),
-  ].sort((a,b)=>b.sortDate-a.sortDate).slice(0,18);
+
+  const allEvents=[
+    ...data.masters.map(e=>({date:String(e.year),label:"The Masters",winner:e.results[0],type:"Masters",sortDate:new Date(e.year,11,31)})),
+    ...(data.usOpen||[]).map(e=>({date:e.venue?`${e.year} · ${e.venue}`:String(e.year),label:"US Open",winner:e.results[0],type:"US Open",sortDate:new Date(e.year,11,31)})),
+    ...(data.zeroSum||[]).filter(m=>parseDate(m.date)).map(m=>({date:m.date,label:`${m.p1} vs ${m.p2}${m.margin?" ("+m.margin+")":""}`,winner:m.winner,type:"Zero Sum",sortDate:parseDate(m.date)})),
+    ...(data.scores||[]).filter(s=>parseDate(s.date)).map(s=>({date:s.date,label:`${s.player} — ${s.course} (${s.holes}H)`,score:s.score,player:s.player,type:"Score",sortDate:parseDate(s.date)})),
+    ...(data.r2bLog||[]).filter(e=>parseDate(e.date)).map(e=>({date:e.date,label:`R2B ${e.player} — birdie hole ${e.hole}`,type:"R2B",player:e.player,sortDate:parseDate(e.date)})),
+    ...(data.challenges||[]).flatMap(c=>PLAYERS.filter(p=>c.done[p]).map(p=>({date:c.doneDates?.[p]||null,label:`Challenge: ${p} — ${c.title}`,type:"Challenge",player:p,sortDate:c.doneDates?.[p]?parseDate(c.doneDates[p]):new Date(0)}))),
+  ].sort((a,b)=>b.sortDate-a.sortDate);
+
+  const recent=allEvents.filter(e=>e.sortDate>=threeMonthsAgo).slice(0,18);
+  const feedItems=showAllFeed?allEvents:recent;
 
   return(
     <div style={{display:"flex",flexDirection:"column",gap:14}}>
       {/* Recente activiteit — full width at top */}
       <div className="card">
-        <div style={{fontSize:12,color:"#f472b6",fontFamily:"'DM Sans',sans-serif",letterSpacing:2,textTransform:"uppercase",marginBottom:12}}>🕐 Recente Activiteit</div>
-        {recent.length===0
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
+          <div style={{fontSize:12,color:"#f472b6",fontFamily:"'DM Sans',sans-serif",letterSpacing:2,textTransform:"uppercase"}}>🕐 {showAllFeed?"Alle Activiteit":"Recente Activiteit"}</div>
+          <button onClick={()=>setShowAllFeed(v=>!v)} style={{background:showAllFeed?"#3a1a2e":"#131a14",border:`1px solid ${showAllFeed?"#f472b6":"#2a3a2a"}`,color:showAllFeed?"#f472b6":"#6b7563",padding:"5px 11px",borderRadius:7,fontFamily:"'DM Sans',sans-serif",fontSize:11,cursor:"pointer",letterSpacing:0.5}}>
+            {showAllFeed?"← Laatste 3 maanden":"📜 Volledige geschiedenis"}
+          </button>
+        </div>
+        {feedItems.length===0
           ?<div style={{color:"#4b5563",fontFamily:"'DM Sans',sans-serif",fontSize:13}}>Geen activiteit in de laatste 3 maanden.</div>
-          :<div style={{columns:"2 280px",columnGap:16}}>
-            {recent.map((m,i)=>(
+          :<div style={{columns:showAllFeed?"1":"2 280px",columnGap:16,maxHeight:showAllFeed?500:undefined,overflowY:showAllFeed?"auto":undefined}}>
+            {feedItems.map((m,i)=>(
               <div key={i} style={{display:"flex",alignItems:"center",gap:8,padding:"7px 0",borderBottom:"1px solid #131a14",fontFamily:"'DM Sans',sans-serif",fontSize:13,breakInside:"avoid"}}>
                 <span className="tag" style={{background:`${typeColor[m.type]||"#888"}18`,color:typeColor[m.type]||"#888",flexShrink:0,fontSize:10,minWidth:60,textAlign:"center"}}>{m.type}</span>
                 <span style={{flex:1,color:"#8a9a88",fontSize:12,minWidth:0,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{m.label}</span>
+                {m.date&&<span style={{color:"#4b5563",fontSize:11,flexShrink:0,fontFamily:"'DM Sans',sans-serif"}}>{m.date}</span>}
                 {m.type==="Score"
                   ?<span style={{color:PC[m.player]||"#a78bfa",fontWeight:700,flexShrink:0}}>{m.score>0?"+":""}{m.score}</span>
                   :(m.winner&&<span style={{color:PC[m.winner],fontWeight:600,flexShrink:0}}>🏆 {m.winner}</span>)}
@@ -1099,7 +1110,19 @@ function ChallengesTab({data,save}){
   };
 
   const toggleDone = (id,player) => {
-    save({...data,challenges:challenges.map(c=>c.id===id?{...c,done:{...c.done,[player]:!c.done[player]}}:c)});
+    const today=new Date();
+    const dd=String(today.getDate()).padStart(2,'0');
+    const mm=String(today.getMonth()+1).padStart(2,'0');
+    const yyyy=today.getFullYear();
+    const dateStr=`${dd}/${mm}/${yyyy}`;
+    save({...data,challenges:challenges.map(c=>{
+      if(c.id!==id) return c;
+      const isDone=c.done[player];
+      const newDone={...c.done,[player]:!isDone};
+      const newDates={...(c.doneDates||{})};
+      if(isDone){ delete newDates[player]; } else { newDates[player]=dateStr; }
+      return {...c,done:newDone,doneDates:newDates};
+    })});
   };
 
   const removeChallenge = (id) => save({...data,challenges:challenges.filter(c=>c.id!==id)});
