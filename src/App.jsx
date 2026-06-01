@@ -1245,7 +1245,10 @@ function ChallengesTab({data,save}){
                 );
               })}
             </div>
-            <div style={{marginTop:8,fontFamily:"'DM Sans',sans-serif",fontSize:11,color:"#4b5563"}}>{doneCount}/{PLAYERS.length} voltooid</div>
+            <div style={{marginTop:8,display:"flex",justifyContent:"space-between",alignItems:"center",fontFamily:"'DM Sans',sans-serif",fontSize:11}}>
+              <span style={{color:"#4b5563"}}>{doneCount}/{PLAYERS.length} voltooid</span>
+              {c.addedBy&&<span style={{color:PC[c.addedBy]||"#6b7563"}}>🏌️ {c.addedBy}</span>}
+            </div>
           </div>
         );
       })}
