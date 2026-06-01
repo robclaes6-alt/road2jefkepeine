@@ -179,6 +179,8 @@ const defaultData = {
     {year:2022,venue:"Bossenstein",results:["Joost","Rob","Joris","Thomas"],scores:{Joost:15,Rob:18,Joris:19,Thomas:22},notes:"Bossenstein. Afschuwelijke greens. Thomas quad op hole 12."},
     {year:2021,venue:"Postel",results:["Rob","Joost","Thomas","Joris"],scores:{Rob:15,Joost:18,Thomas:null,Joris:27},notes:"1ste editie in Postel. Afschuwelijke greens, ongeziene hoeveelheid 3 en 4-putts."},
   ],
+  ryderCup: [],
+  appNotes: [],
   challenges: [],
   scores: [],
   records: {
@@ -284,8 +286,7 @@ export default function GolfApp() {
     {id:"zerogame",  label:"Zero Sum",   icon:"⚔️"},
     {id:"scores",    label:"Scores",     icon:"📊"},
     {id:"challenges",label:"Challenges", icon:"🎯"},
-    {id:"masters",   label:"Masters",    icon:"🏆"},
-    {id:"usopen",    label:"US Open",    icon:"🌊"},
+    {id:"tornooien", label:"Tornooien",  icon:"🏆"},
     {id:"records",   label:"Records",    icon:"📋"},
   ];
 
@@ -336,7 +337,10 @@ export default function GolfApp() {
           <div style={{fontSize:10,color:"#4ade80",fontFamily:"'DM Sans',sans-serif",letterSpacing:2,textTransform:"uppercase",marginTop:1}}>Rob · Joost · Thomas · Joris</div>
           <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
         </div>
-        {toast && <div style={{background:"#1e3a1e",color:"#4ade80",padding:"7px 13px",borderRadius:8,fontFamily:"'DM Sans',sans-serif",fontSize:13,border:"1px solid #2a4a2a"}}>{toast}</div>}
+        <div style={{display:"flex",gap:8,alignItems:"center"}}>
+          {toast && <div style={{background:"#1e3a1e",color:"#4ade80",padding:"7px 13px",borderRadius:8,fontFamily:"'DM Sans',sans-serif",fontSize:13,border:"1px solid #2a4a2a"}}>{toast}</div>}
+          <NotesButton data={data} save={save}/>
+        </div>
       </div>
 
       {/* Nav */}
@@ -352,10 +356,10 @@ export default function GolfApp() {
         {tab==="dashboard" && <Dashboard data={data}/>}
         {tab==="zerogame"  && <ZeroSumGame data={data} save={save}/>}
         {tab==="r2b"       && <R2BTab data={data} save={save}/>}
-        {tab==="masters"   && <TourneyTab data={data} save={save} tourney="masters"/>}
-        {tab==="usopen"    && <TourneyTab data={data} save={save} tourney="usopen"/>}
+
         {tab==="challenges"&& <ChallengesTab data={data} save={save}/>}
         {tab==="scores"    && <ScoresTab data={data} save={save}/>}
+        {tab==="tornooien" && <TornooienTab data={data} save={save}/>}
         {tab==="records"   && <RecordsTab data={data} save={save}/>}
       </div>
     </div>
@@ -382,19 +386,48 @@ function Dashboard({data}){
     if(parts.length!==3)return null;
     return new Date(+parts[2],+parts[1]-1,+parts[0]);
   };
-  const typeColor={Masters:"#4ade80","US Open":"#60a5fa","Zero Sum":"#e8a838",Score:"#a78bfa"};
+  const typeColor={Masters:"#4ade80","US Open":"#60a5fa","Zero Sum":"#e8a838",Score:"#a78bfa",R2B:"#4ade80",Record:"#e8a838",Challenge:"#f472b6"};
   const recent=[
     ...data.masters.filter(e=>new Date(e.year,11,31)>=threeMonthsAgo).map(e=>({date:String(e.year),label:"The Masters",winner:e.results[0],type:"Masters",sortDate:new Date(e.year,11,31)})),
     ...(data.usOpen||[]).filter(e=>new Date(e.year,11,31)>=threeMonthsAgo).map(e=>({date:e.venue?`${e.year} · ${e.venue}`:String(e.year),label:"US Open",winner:e.results[0],type:"US Open",sortDate:new Date(e.year,11,31)})),
-    ...(data.zeroSum||[]).filter(m=>{const d=parseDate(m.date);return d&&d>=threeMonthsAgo;}).map(m=>({date:m.date,label:`${m.p1} vs ${m.p2}`,winner:m.winner,type:"Zero Sum",sortDate:parseDate(m.date)})),
+    ...(data.zeroSum||[]).filter(m=>{const d=parseDate(m.date);return d&&d>=threeMonthsAgo;}).map(m=>({date:m.date,label:`${m.p1} vs ${m.p2}${m.margin?" ("+m.margin+")":""}`,winner:m.winner,type:"Zero Sum",sortDate:parseDate(m.date)})),
     ...(data.scores||[]).filter(s=>{const d=parseDate(s.date);return d&&d>=threeMonthsAgo;}).map(s=>({date:s.date,label:`${s.player} — ${s.course} (${s.holes}H)`,score:s.score,player:s.player,type:"Score",sortDate:parseDate(s.date)})),
-  ].sort((a,b)=>b.sortDate-a.sortDate).slice(0,10);
+    ...(()=>{
+      const latest=Object.keys(data.r2b).sort().reverse()[0];
+      if(!latest)return[];
+      const sd=data.r2b[latest];
+      const events=[];
+      PLAYERS.forEach(p=>{(sd.holes[p]||[]).forEach((v,i)=>{if(v)events.push({label:`R2B ${p} — birdie hole ${i+1}`,type:"R2B",player:p,sortDate:new Date(0)});});});
+      return events;
+    })(),
+    ...(data.challenges||[]).flatMap(c=>PLAYERS.filter(p=>c.done[p]).map(p=>({label:`Challenge: ${p} — ${c.title}`,type:"Challenge",player:p,sortDate:new Date(0)}))),
+  ].sort((a,b)=>b.sortDate-a.sortDate).slice(0,18);
 
   return(
     <div style={{display:"flex",flexDirection:"column",gap:14}}>
+      {/* Recente activiteit — full width at top */}
+      <div className="card">
+        <div style={{fontSize:12,color:"#f472b6",fontFamily:"'DM Sans',sans-serif",letterSpacing:2,textTransform:"uppercase",marginBottom:12}}>🕐 Recente Activiteit</div>
+        {recent.length===0
+          ?<div style={{color:"#4b5563",fontFamily:"'DM Sans',sans-serif",fontSize:13}}>Geen activiteit in de laatste 3 maanden.</div>
+          :<div style={{columns:"2 280px",columnGap:16}}>
+            {recent.map((m,i)=>(
+              <div key={i} style={{display:"flex",alignItems:"center",gap:8,padding:"7px 0",borderBottom:"1px solid #131a14",fontFamily:"'DM Sans',sans-serif",fontSize:13,breakInside:"avoid"}}>
+                <span className="tag" style={{background:`${typeColor[m.type]||"#888"}18`,color:typeColor[m.type]||"#888",flexShrink:0,fontSize:10,minWidth:60,textAlign:"center"}}>{m.type}</span>
+                <span style={{flex:1,color:"#8a9a88",fontSize:12,minWidth:0,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{m.label}</span>
+                {m.type==="Score"
+                  ?<span style={{color:PC[m.player]||"#a78bfa",fontWeight:700,flexShrink:0}}>{m.score>0?"+":""}{m.score}</span>
+                  :(m.winner&&<span style={{color:PC[m.winner],fontWeight:600,flexShrink:0}}>🏆 {m.winner}</span>)}
+              </div>
+            ))}
+          </div>
+        }
+      </div>
+
+      {/* Two stats cards */}
       <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(260px,1fr))",gap:14}}>
         <div className="card">
-          <div style={{fontSize:12,color:"#e8a838",fontFamily:"'DM Sans',sans-serif",letterSpacing:2,textTransform:"uppercase",marginBottom:12}}>⚔️ Zero Sum 2025</div>
+          <div style={{fontSize:12,color:"#e8a838",fontFamily:"'DM Sans',sans-serif",letterSpacing:2,textTransform:"uppercase",marginBottom:12}}>⚔️ Zero Sum 2026</div>
           {zsStandings.every(r=>r.played===0)
             ? <div style={{color:"#4b5563",fontFamily:"'DM Sans',sans-serif",fontSize:13}}>Nog geen matches gespeeld.</div>
             : <table><thead><tr><th>Speler</th><th>Ptn</th><th>W/L</th></tr></thead>
@@ -410,7 +443,7 @@ function Dashboard({data}){
 
         <div className="card">
           <div style={{fontSize:12,color:"#60a5fa",fontFamily:"'DM Sans',sans-serif",letterSpacing:2,textTransform:"uppercase",marginBottom:12}}>🐦 R2B {latestR2B}</div>
-          <table><thead><tr><th>Speler</th><th>Ptn</th><th>Holes</th><th>B2B</th></tr></thead>
+          <table><thead><tr><th>Speler</th><th>Ptn</th><th>Birdies</th><th>B2B</th></tr></thead>
           <tbody>{r2bRanked.map((p,i)=>(
             <tr key={p}>
               <td style={{fontWeight:700,color:PC[p]}}>{me[i]} {p}</td>
@@ -420,24 +453,9 @@ function Dashboard({data}){
             </tr>
           ))}</tbody></table>
         </div>
-
-        <div className="card">
-          <div style={{fontSize:12,color:"#f472b6",fontFamily:"'DM Sans',sans-serif",letterSpacing:2,textTransform:"uppercase",marginBottom:12}}>🕐 Recente Activiteit</div>
-          {recent.length===0
-            ? <div style={{color:"#4b5563",fontFamily:"'DM Sans',sans-serif",fontSize:13}}>Geen activiteit in de laatste 3 maanden.</div>
-            : recent.map((m,i)=>(
-              <div key={i} style={{display:"flex",alignItems:"center",gap:8,padding:"8px 0",borderBottom:"1px solid #131a14",fontFamily:"'DM Sans',sans-serif",fontSize:13}}>
-                <span className="tag" style={{background:`${typeColor[m.type]}18`,color:typeColor[m.type],flexShrink:0,fontSize:10}}>{m.type}</span>
-                <span style={{flex:1,color:"#8a9a88",fontSize:12,minWidth:0,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{m.label} · {m.date}</span>
-                {m.type==="Score"
-                  ?<span style={{color:PC[m.player]||"#a78bfa",fontWeight:700,flexShrink:0}}>{m.score} ptn</span>
-                  :(m.winner&&<span style={{color:PC[m.winner],fontWeight:600,flexShrink:0}}>🏆 {m.winner}</span>)}
-              </div>
-            ))
-          }
-        </div>
       </div>
 
+      {/* All-time tourney */}
       <div className="card">
         <div style={{fontSize:12,color:"#4ade80",fontFamily:"'DM Sans',sans-serif",letterSpacing:2,textTransform:"uppercase",marginBottom:12}}>🏆 All-Time Tornooi Klassement</div>
         <table><thead><tr><th>Speler</th><th>Totaal</th><th>Masters</th><th>US Open</th></tr></thead>
@@ -699,7 +717,7 @@ function R2BTab({data,save}){
               <div key={p} className="card" style={{textAlign:"center",padding:"11px 6px",borderColor:i===0?"#e8a838":"#1e2a1e"}}>
                 <div style={{fontSize:10,color:"#6b7563",fontFamily:"'DM Sans',sans-serif",marginBottom:3}}>{me[i]} {p}</div>
                 <div style={{fontSize:26,fontWeight:900,color:PC[p]}}>{totals[p]}</div>
-                <div style={{fontSize:10,color:"#6b7563",fontFamily:"'DM Sans',sans-serif",marginTop:3}}>{sd.holes[p]?.reduce((a,b)=>a+b,0)||0}h · {sd.b2b?.[p]||0}b2b</div>
+                <div style={{fontSize:10,color:"#6b7563",fontFamily:"'DM Sans',sans-serif",marginTop:3}}>{sd.holes[p]?.reduce((a,b)=>a+b,0)||0} birdies & {sd.b2b?.[p]||0} back2back</div>
               </div>
             ))}
           </div>
@@ -729,6 +747,11 @@ function R2BTab({data,save}){
                   {season!=="2026"&&sd.bestImprRound&&<Counter label="Best Impr." value={sd.bestImprRound[player]||0} onChange={v=>updateCounter("bestImprRound",player,v)} color="#60a5fa"/>}
                   {season!=="2026"&&sd.foursomes&&<Counter label="Foursomes" value={sd.foursomes[player]||0} onChange={v=>updateCounter("foursomes",player,v)} color="#f472b6"/>}
                 </div>
+                {(()=>{const missing=holes.map((v,i)=>v?null:i+1).filter(Boolean);return missing.length>0&&(
+                  <div style={{marginTop:8,fontFamily:"'DM Sans',sans-serif",fontSize:11,color:"#4b5563"}}>
+                    Nog niet gebirdied: {missing.map(n=><span key={n} style={{display:"inline-block",background:"#1a1a1a",border:"1px solid #2a2a2a",borderRadius:4,padding:"1px 5px",margin:"1px 2px",color:"#6b7563"}}>{n}</span>)}
+                  </div>
+                );})()}
               </div>
             );
           })}
@@ -802,8 +825,8 @@ function R2BHistory({data}){
   );
 }
 
-// ─── Tourney Tab ──────────────────────────────────────────────────────────────
-function TourneyTab({data,save,tourney}){
+// ─── Single Tourney Tab ──────────────────────────────────────────────────────────────
+function SingleTourneyTab({data,save,tourney}){
   const isMasters=tourney==="masters";
   const history=isMasters?data.masters:data.usOpen;
   const stats=calcAllTimeTourney(history,!isMasters);
@@ -833,7 +856,7 @@ function TourneyTab({data,save,tourney}){
             <div key={p} style={{textAlign:"center",background:"#131a14",borderRadius:10,padding:"10px 6px",border:`1px solid ${i===0?"#e8a838":"#1e2a1e"}`}}>
               <div style={{fontSize:10,color:"#6b7563",fontFamily:"'DM Sans',sans-serif",marginBottom:3}}>{me[i]} {p}</div>
               <div style={{fontSize:22,fontWeight:900,color:PC[p]}}>{stats[p]?.pts||0}</div>
-              <div style={{fontSize:10,color:"#4b5563",fontFamily:"'DM Sans',sans-serif",marginTop:3}}>🥇{stats[p]?.p1||0} 🥈{stats[p]?.p2||0} 🥉{stats[p]?.p3||0}</div>
+              <div style={{fontSize:10,color:"#4b5563",fontFamily:"'DM Sans',sans-serif",marginTop:3}}>🥇{stats[p]?.p1||0} 🥈{stats[p]?.p2||0} 🥉{stats[p]?.p3||0} 💀{stats[p]?.p4||0}</div>
             </div>
           ))}
         </div>
@@ -901,16 +924,16 @@ function TourneyTab({data,save,tourney}){
                   </div>
                 ))}
               </div>
-              {ed.notes&&(
-                <div>
-                  <button onClick={()=>setShowVerslag(v=>({...v,[ed.year]:!v[ed.year]}))} style={{background:"#131a14",border:"1px solid #1e2a1e",borderRadius:6,color:showVerslag[ed.year]?"#e8a838":"#6b7563",fontFamily:"'DM Sans',sans-serif",fontSize:12,padding:"5px 12px",cursor:"pointer",marginBottom:showVerslag[ed.year]?10:0,transition:"all 0.15s"}}>
-                    📖 Verslag {showVerslag[ed.year]?"▲":"▼"}
-                  </button>
-                  {showVerslag[ed.year]&&(
-                    <div style={{fontSize:13,color:"#8a9a88",fontFamily:"'DM Sans',sans-serif",lineHeight:1.7,fontStyle:"italic",borderLeft:"2px solid #2a3a1e",paddingLeft:12}}>{ed.notes}</div>
-                  )}
-                </div>
-              )}
+              <div>
+                <button onClick={()=>setShowVerslag(v=>({...v,[ed.year]:!v[ed.year]}))} style={{background:"#131a14",border:"1px solid #1e2a1e",borderRadius:6,color:showVerslag[ed.year]?"#e8a838":"#6b7563",fontFamily:"'DM Sans',sans-serif",fontSize:12,padding:"5px 12px",cursor:"pointer",marginBottom:showVerslag[ed.year]?10:0,transition:"all 0.15s"}}>
+                  📖 Verslag {showVerslag[ed.year]?"▲":"▼"}
+                </button>
+                {showVerslag[ed.year]&&(
+                  <div>
+                    <textarea value={ed.notes||""} onChange={e=>{const newH=history.map(h=>h.year===ed.year?{...h,notes:e.target.value}:h);save({...data,[isMasters?"masters":"usOpen"]:newH});}} className="input" rows={4} style={{marginTop:8}}/>
+                  </div>
+                )}
+              </div>
             </div>
           )}
         </div>
@@ -1169,13 +1192,13 @@ function ChallengesTab({data,save}){
 }
 
 // ─── Scores Tab ───────────────────────────────────────────────────────────────
-const COURSES_LIST = ["Millenium","Ternesse","Haverleij","Gendersteyn","Royal Latem","Royal Zoute","Bossenstein","Postel","Rigenee","Andere"];
+const COURSES_LIST = ["Millenium","Ternesse","Haverleij","Gendersteyn","Royal Latem","Royal Zoute","Royal Ostend","Bossenstein","Postel","Rigenee","Andere"];
 
 function ScoresTab({data,save}){
   const scores = data.scores||[];
   const [showForm,setShowForm] = useState(false);
   const [form,setForm] = useState({player:"Rob",course:"Millenium",score:"",holes:18,date:"",customCourse:""});
-  const [viewPlayer,setViewPlayer] = useState("Rob");
+  const [viewPlayer,setViewPlayer] = useState("all");
   const parseDate = str=>{ if(!str)return 0; const p=str.split('/'); return p.length===3?new Date(+p[2],+p[1]-1,+p[0]).getTime():0; };
 
   const addScore = () => {
@@ -1259,7 +1282,7 @@ function ScoresTab({data,save}){
             </div>
             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
               <div>
-                <label style={{fontSize:11,color:"#6b7563",fontFamily:"'DM Sans',sans-serif",letterSpacing:1,display:"block",marginBottom:5}}>SCORE (stableford)</label>
+                <label style={{fontSize:11,color:"#6b7563",fontFamily:"'DM Sans',sans-serif",letterSpacing:1,display:"block",marginBottom:5}}>SCORE (+/- baan)</label>
                 <input type="number" className="input" value={form.score} onChange={e=>setForm(f=>({...f,score:e.target.value}))} placeholder="bv. 36"/>
               </div>
               <div>
@@ -1399,5 +1422,242 @@ function ScoresTab({data,save}){
         </div>
       )}
     </div>
+  );
+}
+
+// ─── Tornooien Tab (combined Masters + US Open + Ryder Cup) ───────────────────
+const RYDER_DEFAULT = [
+  {year:2023,team1:["Joris","Joost"],team2:["Rob","Thomas"],winner:"team1",notes:""},
+  {year:2024,team1:["Rob","Thomas"],team2:["Joris","Joost"],winner:"team1",notes:""},
+  {year:2025,team1:["Joost","Thomas"],team2:["Rob","Joris"],winner:"team1",notes:""},
+];
+
+function TornooienTab({data,save}){
+  const [view,setView] = useState("overview"); // overview | masters | usopen | ryder
+  const mastersStats = calcAllTimeTourney(data.masters||[],false);
+  const usopenStats  = calcAllTimeTourney(data.usOpen||[],true);
+  const allTimeSorted=[...PLAYERS].sort((a,b)=>{
+    const apts=(mastersStats[a]?.pts||0)+(usopenStats[a]?.pts||0);
+    const bpts=(mastersStats[b]?.pts||0)+(usopenStats[b]?.pts||0);
+    return bpts-apts;
+  });
+  const me=["🥇","🥈","🥉","4️⃣"];
+  const ryderData = data.ryderCup||RYDER_DEFAULT;
+  const ryderWins = Object.fromEntries(PLAYERS.map(p=>[p,ryderData.filter(r=>{const wt=r.winner==="team1"?r.team1:r.team2;return wt.includes(p);}).length]));
+  const ryderSorted=[...PLAYERS].sort((a,b)=>ryderWins[b]-ryderWins[a]);
+
+  if(view!=="overview") return(
+    <div>
+      <button onClick={()=>setView("overview")} style={{background:"#131a14",border:"1px solid #2a3a2a",color:"#a0b898",padding:"8px 14px",borderRadius:8,fontFamily:"'DM Sans',sans-serif",fontSize:13,cursor:"pointer",marginBottom:14}}>
+        ← Terug naar overzicht
+      </button>
+      {view==="masters"&&<SingleTourneyTab data={data} save={save} tourney="masters"/>}
+      {view==="usopen"&&<SingleTourneyTab data={data} save={save} tourney="usopen"/>}
+      {view==="ryder"&&<RyderCupTab data={data} save={save}/>}
+    </div>
+  );
+
+  return(
+    <div style={{display:"flex",flexDirection:"column",gap:14}}>
+      {/* Overall all-time */}
+      <div className="card">
+        <div style={{fontSize:12,color:"#e8a838",fontFamily:"'DM Sans',sans-serif",letterSpacing:2,textTransform:"uppercase",marginBottom:10}}>🏆 All-Time Tornooi Klassement</div>
+        <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(140px,1fr))",gap:10,marginBottom:10}}>
+          {allTimeSorted.map((p,i)=>{
+            const mS=mastersStats[p]||{};const uS=usopenStats[p]||{};
+            const total=(mS.pts||0)+(uS.pts||0);
+            return(
+              <div key={p} style={{textAlign:"center",background:"#131a14",borderRadius:10,padding:"10px 6px",border:`1px solid ${i===0?"#e8a838":"#1e2a1e"}`}}>
+                <div style={{fontSize:10,color:"#6b7563",fontFamily:"'DM Sans',sans-serif",marginBottom:3}}>{me[i]} {p}</div>
+                <div style={{fontSize:24,fontWeight:900,color:PC[p]}}>{total}</div>
+                <div style={{fontSize:10,color:"#4b5563",fontFamily:"'DM Sans',sans-serif",marginTop:3}}>
+                  M: 🥇{mS.p1||0} 🥈{mS.p2||0} 🥉{mS.p3||0} 💀{mS.p4||0}
+                </div>
+                <div style={{fontSize:10,color:"#4b5563",fontFamily:"'DM Sans',sans-serif"}}>
+                  US: 🥇{uS.p1||0} 🥈{uS.p2||0} 🥉{uS.p3||0} 💀{uS.p4||0}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Ryder cup mini */}
+      <div className="card">
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
+          <div style={{fontSize:12,color:"#60a5fa",fontFamily:"'DM Sans',sans-serif",letterSpacing:2,textTransform:"uppercase"}}>⛳ Ryder Cup Wins</div>
+          <button onClick={()=>setView("ryder")} style={{background:"#0a1a2e",border:"1px solid #1a2a3e",color:"#60a5fa",padding:"5px 11px",borderRadius:7,fontFamily:"'DM Sans',sans-serif",fontSize:12,cursor:"pointer"}}>Details →</button>
+        </div>
+        <div style={{display:"flex",gap:10,flexWrap:"wrap"}}>
+          {ryderSorted.map((p,i)=>(
+            <div key={p} style={{textAlign:"center",flex:1,minWidth:60}}>
+              <div style={{fontSize:10,color:"#6b7563",fontFamily:"'DM Sans',sans-serif"}}>{me[i]} {p}</div>
+              <div style={{fontSize:20,fontWeight:800,color:PC[p]}}>{ryderWins[p]}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Navigate buttons */}
+      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(140px,1fr))",gap:10}}>
+        {[
+          {id:"masters",label:"🏆 The Masters",color:"#e8a838",wins:data.masters?.length||0},
+          {id:"usopen",label:"🌊 US Open",color:"#60a5fa",wins:data.usOpen?.length||0},
+          {id:"ryder",label:"⛳ Ryder Cup",color:"#4ade80",wins:ryderData.length},
+        ].map(t=>(
+          <button key={t.id} onClick={()=>setView(t.id)}
+            style={{background:"#111620",border:`1px solid ${t.color}44`,borderRadius:12,padding:"16px 10px",cursor:"pointer",textAlign:"center"}}>
+            <div style={{fontSize:18,marginBottom:4}}>{t.label.split(" ")[0]}</div>
+            <div style={{fontFamily:"'DM Sans',sans-serif",fontWeight:700,fontSize:15,color:t.color}}>{t.label.split(" ").slice(1).join(" ")}</div>
+            <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:11,color:"#4b5563",marginTop:4}}>{t.wins} edities</div>
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ─── Ryder Cup Tab ────────────────────────────────────────────────────────────
+function RyderCupTab({data,save}){
+  const ryderData = data.ryderCup||RYDER_DEFAULT;
+  const [showAdd,setShowAdd] = useState(false);
+  const [form,setForm] = useState({year:new Date().getFullYear(),team1:["Rob","Thomas"],team2:["Joris","Joost"],winner:"team1",notes:""});
+
+  const ryderWins = Object.fromEntries(PLAYERS.map(p=>[p,ryderData.filter(r=>{const wt=r.winner==="team1"?r.team1:r.team2;return wt.includes(p);}).length]));
+  const me=["🥇","🥈","🥉","4️⃣"];
+  const sorted=[...PLAYERS].sort((a,b)=>ryderWins[b]-ryderWins[a]);
+
+  const addEdition=()=>{
+    const newData=[...ryderData,{...form,year:parseInt(form.year)}].sort((a,b)=>b.year-a.year);
+    save({...data,ryderCup:newData});
+    setShowAdd(false);
+  };
+
+  return(
+    <div style={{display:"flex",flexDirection:"column",gap:12}}>
+      <div className="card">
+        <div style={{fontSize:12,color:"#60a5fa",fontFamily:"'DM Sans',sans-serif",letterSpacing:2,textTransform:"uppercase",marginBottom:10}}>All-Time Ryder Cup Wins</div>
+        <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(100px,1fr))",gap:10}}>
+          {sorted.map((p,i)=>(
+            <div key={p} style={{textAlign:"center",background:"#131a14",borderRadius:10,padding:"10px 6px",border:`1px solid ${i===0?"#60a5fa":"#1e2a1e"}`}}>
+              <div style={{fontSize:10,color:"#6b7563",fontFamily:"'DM Sans',sans-serif",marginBottom:3}}>{me[i]} {p}</div>
+              <div style={{fontSize:22,fontWeight:900,color:PC[p]}}>{ryderWins[p]}</div>
+              <div style={{fontSize:10,color:"#4b5563",fontFamily:"'DM Sans',sans-serif",marginTop:3}}>{ryderData.filter(r=>r.team1.includes(p)||r.team2.includes(p)).length} edities</div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div style={{display:"flex",justifyContent:"flex-end"}}>
+        <button onClick={()=>setShowAdd(v=>!v)} style={{background:"#60a5fa",color:"#00040a",padding:"9px 16px",borderRadius:8,fontFamily:"'DM Sans',sans-serif",fontWeight:700,fontSize:13,border:"none",cursor:"pointer"}}>
+          {showAdd?"✕ Annuleer":"+ Editie"}
+        </button>
+      </div>
+
+      {showAdd&&(
+        <div className="card" style={{borderColor:"#60a5fa"}}>
+          <div style={{display:"grid",gridTemplateColumns:"1fr",gap:10}}>
+            <div>
+              <label style={{fontSize:11,color:"#6b7563",fontFamily:"'DM Sans',sans-serif",display:"block",marginBottom:4}}>JAAR</label>
+              <input type="number" value={form.year} onChange={e=>setForm(f=>({...f,year:e.target.value}))} className="input"/>
+            </div>
+            {["team1","team2"].map((team,ti)=>(
+              <div key={team}>
+                <label style={{fontSize:11,color:"#6b7563",fontFamily:"'DM Sans',sans-serif",display:"block",marginBottom:4}}>TEAM {ti+1}</label>
+                <div style={{display:"flex",gap:8}}>
+                  {[0,1].map(pi=>(
+                    <select key={pi} value={form[team][pi]||""} onChange={e=>{const t=[...form[team]];t[pi]=e.target.value;setForm(f=>({...f,[team]:t}))}} className="input">
+                      {PLAYERS.map(p=><option key={p} value={p}>{p}</option>)}
+                    </select>
+                  ))}
+                </div>
+              </div>
+            ))}
+            <div>
+              <label style={{fontSize:11,color:"#6b7563",fontFamily:"'DM Sans',sans-serif",display:"block",marginBottom:4}}>WINNAAR</label>
+              <select value={form.winner} onChange={e=>setForm(f=>({...f,winner:e.target.value}))} className="input">
+                <option value="team1">Team 1 ({form.team1.join(" & ")})</option>
+                <option value="team2">Team 2 ({form.team2.join(" & ")})</option>
+              </select>
+            </div>
+            <button onClick={addEdition} style={{background:"#60a5fa",color:"#00040a",padding:"11px",borderRadius:8,fontFamily:"'DM Sans',sans-serif",fontWeight:700,border:"none",cursor:"pointer"}}>Opslaan</button>
+          </div>
+        </div>
+      )}
+
+      {ryderData.map(ed=>{
+        const winTeam=ed.winner==="team1"?ed.team1:ed.team2;
+        const loseTeam=ed.winner==="team1"?ed.team2:ed.team1;
+        return(
+          <div key={ed.year} className="card">
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",flexWrap:"wrap",gap:8}}>
+              <div style={{fontSize:20,fontWeight:900,color:"#60a5fa"}}>{ed.year}</div>
+              <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:14}}>
+                <span style={{color:"#4ade80",fontWeight:700}}>🏆 {winTeam.join(" & ")}</span>
+                <span style={{color:"#4b5563",margin:"0 8px"}}>vs</span>
+                <span style={{color:"#4b5563"}}>{loseTeam.join(" & ")}</span>
+              </div>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+// ─── Notes/Feedback Button ────────────────────────────────────────────────────
+function NotesButton({data,save}){
+  const [open,setOpen] = useState(false);
+  const notes = data.appNotes||[];
+  const [input,setInput] = useState("");
+
+  const addNote=()=>{
+    if(!input.trim())return;
+    save({...data,appNotes:[...notes,{id:Date.now(),text:input.trim(),status:"open"}]});
+    setInput("");
+  };
+  const setStatus=(id,status)=>save({...data,appNotes:notes.map(n=>n.id===id?{...n,status}:n)});
+  const remove=(id)=>save({...data,appNotes:notes.filter(n=>n.id!==id)});
+
+  const statusColor={open:"#60a5fa",done:"#4ade80","wont-do":"#6b7563",cancel:"#f87171"};
+  const statusLabel={open:"Open",done:"Done","wont-do":"Won't Do",cancel:"Cancel"};
+  const openCount=notes.filter(n=>n.status==="open").length;
+
+  return(
+    <>
+      <button onClick={()=>setOpen(true)} style={{position:"relative",background:"#131a14",border:"1px solid #2a3a2a",borderRadius:8,color:"#8a9a88",width:34,height:34,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",fontSize:16,flexShrink:0}}>
+        📝
+        {openCount>0&&<span style={{position:"absolute",top:-4,right:-4,background:"#60a5fa",color:"#00040a",borderRadius:"50%",width:16,height:16,fontSize:10,fontFamily:"'DM Sans',sans-serif",fontWeight:700,display:"flex",alignItems:"center",justifyContent:"center"}}>{openCount}</span>}
+      </button>
+      {open&&(
+        <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.75)",zIndex:400,display:"flex",alignItems:"flex-start",justifyContent:"flex-end",padding:"60px 16px 16px"}}>
+          <div className="card" style={{width:"min(380px,100%)",maxHeight:"80vh",overflowY:"auto",borderColor:"#2a3a2a"}}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
+              <div style={{fontWeight:700,fontSize:15}}>📝 App Notities</div>
+              <button onClick={()=>setOpen(false)} style={{background:"none",border:"none",color:"#6b7563",cursor:"pointer",fontSize:20,lineHeight:1}}>×</button>
+            </div>
+            <div style={{display:"flex",gap:8,marginBottom:14}}>
+              <input className="input" value={input} onChange={e=>setInput(e.target.value)} onKeyDown={e=>e.key==="Enter"&&addNote()} placeholder="Nieuwe notitie..." style={{flex:1}}/>
+              <button onClick={addNote} disabled={!input.trim()} style={{background:input.trim()?"#60a5fa":"#131a14",color:input.trim()?"#00040a":"#4b5563",border:"none",borderRadius:8,padding:"0 14px",fontFamily:"'DM Sans',sans-serif",fontWeight:700,cursor:input.trim()?"pointer":"default",flexShrink:0}}>+</button>
+            </div>
+            {notes.length===0&&<div style={{color:"#4b5563",fontFamily:"'DM Sans',sans-serif",fontSize:13,textAlign:"center",padding:16}}>Geen notities.</div>}
+            {[...notes].reverse().map(n=>(
+              <div key={n.id} style={{padding:"10px 0",borderBottom:"1px solid #131a14"}}>
+                <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:13,color:n.status==="open"?"#e8e4d8":"#4b5563",textDecoration:n.status==="done"?"line-through":"none",marginBottom:6,lineHeight:1.4}}>{n.text}</div>
+                <div style={{display:"flex",gap:5,flexWrap:"wrap"}}>
+                  {["done","wont-do","cancel"].map(s=>(
+                    <button key={s} onClick={()=>setStatus(n.id,n.status===s?"open":s)}
+                      style={{padding:"3px 9px",borderRadius:5,border:`1px solid ${n.status===s?statusColor[s]:"#2a3a2a"}`,background:n.status===s?`${statusColor[s]}22`:"transparent",color:n.status===s?statusColor[s]:"#4b5563",fontFamily:"'DM Sans',sans-serif",fontSize:11,cursor:"pointer"}}>
+                      {statusLabel[s]}
+                    </button>
+                  ))}
+                  <button onClick={()=>remove(n.id)} style={{marginLeft:"auto",background:"none",border:"none",color:"#4b5563",cursor:"pointer",fontSize:15,padding:"0 4px",lineHeight:1}}>×</button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </>
   );
 }
