@@ -432,7 +432,7 @@ function Dashboard({data}){
                 <span style={{flex:1,color:"#8a9a88",fontSize:12,minWidth:0,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{m.label}</span>
                 {m.date&&<span style={{color:"#4b5563",fontSize:11,flexShrink:0,fontFamily:"'DM Sans',sans-serif"}}>{m.date}</span>}
                 {m.type==="Score"
-                  ?<span style={{color:PC[m.player]||"#a78bfa",fontWeight:700,flexShrink:0}}>{m.score>0?"+":""}{m.score}</span>
+                  ?<span style={{color:PC[m.player]||"#a78bfa",fontWeight:700,flexShrink:0}}>{m.score===0?"E":m.score>0?"+"+m.score:m.score}</span>
                   :(m.winner&&<span style={{color:PC[m.winner],fontWeight:600,flexShrink:0}}>🏆 {m.winner}</span>)}
               </div>
             ))}
@@ -489,7 +489,8 @@ function Dashboard({data}){
 
 // ─── Zero Sum Game ────────────────────────────────────────────────────────────
 function ZeroSumGame({data,save}){
-  const [form,setForm]=useState({date:"",p1:"Rob",p2:"Thomas",winner:"",margin:"",type:"2p",roundId:"",course:"Millenium",customCourse:""});
+  const [form,setForm]=useState({date:"",p1:"Rob",p2:"Thomas",winner:"",margin:"",type:"2p",roundId:"",course:"Millenium",customCourse:"",notes:""});
+  const [expandedMatch,setExpandedMatch]=useState(null);
   const [showForm,setShowForm]=useState(false);
   const standings=calcZeroSum(data.zeroSum||[]);
 
@@ -609,6 +610,11 @@ function ZeroSumGame({data,save}){
                 <input className="input" value={form.customCourse} onChange={e=>setForm(f=>({...f,customCourse:e.target.value}))} placeholder="Naam golfbaan..." style={{marginTop:0}}/>
               )}
             </div>
+            {/* Verslag */}
+            <div>
+              <label style={{fontSize:11,color:"#6b7563",fontFamily:"'DM Sans',sans-serif",letterSpacing:1,display:"block",marginBottom:5}}>VERSLAG (optioneel)</label>
+              <textarea className="input" value={form.notes} onChange={e=>setForm(f=>({...f,notes:e.target.value}))} placeholder="Kort verslagje van de match..." rows={2} style={{resize:"vertical"}}/>
+            </div>
             {/* Save */}
             <button onClick={addMatch} disabled={!form.winner||!form.date} style={{background:"#4ade80",color:"#0a1a0a",padding:"12px",borderRadius:9,fontFamily:"'DM Sans',sans-serif",fontWeight:700,fontSize:14,cursor:"pointer",border:"none",opacity:(!form.winner||!form.date)?0.4:1}}>
               Match Opslaan
@@ -623,18 +629,24 @@ function ZeroSumGame({data,save}){
           <div style={{fontSize:12,color:"#6b7563",fontFamily:"'DM Sans',sans-serif",letterSpacing:2,textTransform:"uppercase",marginBottom:10}}>Match Geschiedenis</div>
           <div style={{maxHeight:400,overflowY:"auto"}}>
             {[...(data.zeroSum||[])].reverse().map((m,i)=>(
-              <div key={m.id||i} style={{display:"flex",alignItems:"center",gap:8,padding:"8px 0",borderBottom:"1px solid #131a14",fontFamily:"'DM Sans',sans-serif",fontSize:13}}>
-                <span className="fade" style={{width:82,flexShrink:0,fontSize:12}}>{m.date}</span>
-                {m.type==="3p"&&<span className="tag" style={{background:"#1a2a3a",color:"#60a5fa",flexShrink:0}}>3P</span>}
-                <span style={{flex:1}}>
-                  <span style={{color:PC[m.p1]}}>{m.p1}</span>
-                  <span className="fade"> vs </span>
-                  <span style={{color:PC[m.p2]}}>{m.p2}</span>
-                </span>
-                <span style={{color:PC[m.winner],fontWeight:600}}>🏆 {m.winner}</span>
-                {m.course&&<span className="tag" style={{background:"#1a1a2e",color:"#a78bfa",flexShrink:0,fontSize:11}}>{m.course}</span>}
-                {m.margin&&<span className="tag" style={{background:"#1e2a0e",color:"#a0c870",flexShrink:0}}>{m.margin}</span>}
-                <button onClick={()=>removeMatch(m.id)} style={{background:"none",border:"none",color:"#4b5563",cursor:"pointer",fontSize:17,padding:"0 4px",lineHeight:1}}>×</button>
+              <div key={m.id||i} style={{borderBottom:"1px solid #131a14",padding:"6px 0"}}>
+                <div style={{display:"flex",alignItems:"center",gap:8,fontFamily:"'DM Sans',sans-serif",fontSize:13}}>
+                  <span className="fade" style={{width:82,flexShrink:0,fontSize:12}}>{m.date}</span>
+                  {m.type==="3p"&&<span className="tag" style={{background:"#1a2a3a",color:"#60a5fa",flexShrink:0}}>3P</span>}
+                  <span style={{flex:1}}>
+                    <span style={{color:PC[m.p1]}}>{m.p1}</span>
+                    <span className="fade"> vs </span>
+                    <span style={{color:PC[m.p2]}}>{m.p2}</span>
+                  </span>
+                  <span style={{color:PC[m.winner],fontWeight:600}}>🏆 {m.winner}</span>
+                  {m.course&&<span className="tag" style={{background:"#1a1a2e",color:"#a78bfa",flexShrink:0,fontSize:11}}>{m.course}</span>}
+                  {m.margin&&<span className="tag" style={{background:"#1e2a0e",color:"#a0c870",flexShrink:0}}>{m.margin}</span>}
+                  {m.notes&&<button onClick={()=>setExpandedMatch(expandedMatch===m.id?null:m.id)} style={{background:"none",border:"1px solid #2a3a2a",borderRadius:5,color:expandedMatch===m.id?"#e8a838":"#6b7563",cursor:"pointer",fontSize:11,padding:"2px 7px",fontFamily:"'DM Sans',sans-serif",flexShrink:0}}>📖 {expandedMatch===m.id?"▲":"▼"}</button>}
+                  <button onClick={()=>removeMatch(m.id)} style={{background:"none",border:"none",color:"#4b5563",cursor:"pointer",fontSize:17,padding:"0 4px",lineHeight:1}}>×</button>
+                </div>
+                {m.notes&&expandedMatch===m.id&&(
+                  <div style={{marginTop:6,fontSize:13,color:"#8a9a88",fontFamily:"'DM Sans',sans-serif",lineHeight:1.6,fontStyle:"italic",borderLeft:"2px solid #2a3a1e",paddingLeft:10}}>{m.notes}</div>
+                )}
               </div>
             ))}
           </div>
@@ -1324,8 +1336,13 @@ function ScoresTab({data,save}){
             </div>
             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
               <div>
-                <label style={{fontSize:11,color:"#6b7563",fontFamily:"'DM Sans',sans-serif",letterSpacing:1,display:"block",marginBottom:5}}>SCORE (+/- baan)</label>
-                <input type="number" className="input" value={form.score} onChange={e=>setForm(f=>({...f,score:e.target.value}))} placeholder="bv. 36"/>
+                <label style={{fontSize:11,color:"#6b7563",fontFamily:"'DM Sans',sans-serif",letterSpacing:1,display:"block",marginBottom:5}}>SCORE (t.o.v. par)</label>
+                <select className="input" value={form.score} onChange={e=>setForm(f=>({...f,score:e.target.value}))}>
+                  <option value="">— kies score —</option>
+                  {[-4,-3,-2,-1,0,...Array.from({length:31},(_,i)=>i+1)].map(n=>(
+                    <option key={n} value={n}>{n<0?n:n===0?"E (par)":"+"+n}</option>
+                  ))}
+                </select>
               </div>
               <div>
                 <label style={{fontSize:11,color:"#6b7563",fontFamily:"'DM Sans',sans-serif",letterSpacing:1,display:"block",marginBottom:5}}>DATUM</label>
@@ -1347,7 +1364,7 @@ function ScoresTab({data,save}){
               <div style={{fontSize:11,color:"#e8a838",fontFamily:"'DM Sans',sans-serif",letterSpacing:2,textTransform:"uppercase",marginBottom:10}}>🏆 Beste Score (18H)</div>
               {rankBestScore.map((p,i)=><div key={p} style={{display:"flex",justifyContent:"space-between",padding:"5px 0",fontFamily:"'DM Sans',sans-serif",fontSize:13,borderBottom:"1px solid #131a14"}}>
                 <span style={{color:PC[p],fontWeight:600}}>{me[i]} {p}</span>
-                <span style={{color:"#e8a838",fontWeight:700}}>{best(playerScores(p).filter(s=>s.holes===18).map(s=>s.score))}</span>
+                <span style={{color:"#e8a838",fontWeight:700}}>{(v=>v===0?"E":v>0?"+"+v:v)(best(playerScores(p).filter(s=>s.holes===18).map(s=>s.score)))}</span>
               </div>)}
             </div>
           )}
@@ -1356,7 +1373,7 @@ function ScoresTab({data,save}){
               <div style={{fontSize:11,color:"#4ade80",fontFamily:"'DM Sans',sans-serif",letterSpacing:2,textTransform:"uppercase",marginBottom:10}}>📈 Gemiddelde Score (18H)</div>
               {rankAvgScore.map((p,i)=><div key={p} style={{display:"flex",justifyContent:"space-between",padding:"5px 0",fontFamily:"'DM Sans',sans-serif",fontSize:13,borderBottom:"1px solid #131a14"}}>
                 <span style={{color:PC[p],fontWeight:600}}>{me[i]} {p}</span>
-                <span style={{color:"#4ade80",fontWeight:700}}>{avg(playerScores(p).filter(s=>s.holes===18).map(s=>s.score))}</span>
+                <span style={{color:"#4ade80",fontWeight:700}}>{(v=>v===0?"E":v>0?"+"+v:v)(avg(playerScores(p).filter(s=>s.holes===18).map(s=>s.score)))}</span>
               </div>)}
             </div>
           )}
@@ -1407,8 +1424,8 @@ function ScoresTab({data,save}){
               {label:"Totaal rondjes",val:st.total,color:"#60a5fa"},
               {label:"18H rondjes",val:st.rounds18,color:"#4ade80"},
               {label:"9H rondjes",val:st.rounds9,color:"#a78bfa"},
-              {label:"Beste score 18H",val:st.best18??"-",color:"#e8a838"},
-              {label:"Gemiddelde 18H",val:st.avg18??"-",color:"#4ade80"},
+              {label:"Beste score 18H",val:st.best18!=null?(st.best18===0?"E":st.best18>0?"+"+st.best18:st.best18):"-",color:"#e8a838"},
+              {label:"Gemiddelde 18H",val:st.avg18!=null?(st.avg18===0?"E":st.avg18>0?"+"+st.avg18:st.avg18):"-",color:"#4ade80"},
               {label:"Beste score 9H",val:st.best9??"-",color:"#f472b6"},
               {label:"Beste baan (gem.)",val:st.bestCourse?`${st.bestCourse.name} (${st.bestCourse.avg})`:"-",color:"#60a5fa",small:true},
             ].map(item=>(
@@ -1425,8 +1442,8 @@ function ScoresTab({data,save}){
               <tbody>{courseAvgRows.map(r=>(
                 <tr key={r.course}>
                   <td style={{fontFamily:"'DM Sans',sans-serif",color:"#e8e4d8"}}>{r.course}</td>
-                  <td style={{fontWeight:700,color:PC[viewPlayer]}}>{r.avg}</td>
-                  <td style={{color:"#e8a838",fontWeight:600}}>{r.best}</td>
+                  <td style={{fontWeight:700,color:PC[viewPlayer]}}>{r.avg===0?"E":r.avg>0?"+"+r.avg:r.avg}</td>
+                  <td style={{color:"#e8a838",fontWeight:600}}>{r.best===0?"E":r.best>0?"+"+r.best:r.best}</td>
                   <td className="fade">{r.rounds}x</td>
                 </tr>
               ))}</tbody></table>
@@ -1457,7 +1474,7 @@ function ScoresTab({data,save}){
                       <td style={{fontFamily:"'DM Sans',sans-serif",color:"#e8e4d8",fontSize:13}}>{course}</td>
                       {PLAYERS.map(p=>{
                         const v=cellAvg(course,p);
-                        return <td key={p} style={{textAlign:"center",fontFamily:"'DM Sans',sans-serif",fontWeight:v!==null?700:400,color:v!==null?PC[p]:"#2a3a2a",fontSize:13}}>{v!==null?v:"—"}</td>;
+                        return <td key={p} style={{textAlign:"center",fontFamily:"'DM Sans',sans-serif",fontWeight:v!==null?700:400,color:v!==null?PC[p]:"#2a3a2a",fontSize:13}}>{v!==null?(v===0?"E":v>0?"+"+v:v):"—"}</td>;
                       })}
                     </tr>
                   ))}</tbody>
@@ -1481,7 +1498,7 @@ function ScoresTab({data,save}){
                   {viewPlayer==="all"&&<span style={{width:52,flexShrink:0,fontWeight:600,color:PC[s.player]||"#e8e4d8",fontSize:12}}>{s.player}</span>}
                   <span style={{flex:1,color:"#8a9a88",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{s.course}</span>
                   <span className="tag" style={{background:"#0a1a2e",color:"#60a5fa",flexShrink:0}}>{s.holes}H</span>
-                  <span style={{fontWeight:700,color:viewPlayer==="all"?PC[s.player]:PC[viewPlayer],fontSize:15,minWidth:30,textAlign:"right"}}>{s.score}</span>
+                  <span style={{fontWeight:700,color:viewPlayer==="all"?PC[s.player]:PC[viewPlayer],fontSize:15,minWidth:30,textAlign:"right"}}>{s.score===0?"E":s.score>0?"+"+s.score:s.score}</span>
                   <button onClick={()=>removeScore(s.id)} style={{background:"none",border:"none",color:"#4b5563",cursor:"pointer",fontSize:17,padding:"0 4px",lineHeight:1}}>×</button>
                 </div>
               ))}
