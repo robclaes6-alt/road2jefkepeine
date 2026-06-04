@@ -262,6 +262,8 @@ export default function GolfApp() {
   const [loading,setLoading] = useState(true);
   const [tab,setTab] = useState("dashboard");
   const [toast,setToast] = useState(null);
+  // Global modals — lifted here so they always render at root level (correct fixed positioning)
+  const [editDateItem,setEditDateItem] = useState(null);
 
   // Load from Firebase on mount
   useEffect(()=>{
@@ -310,7 +312,80 @@ export default function GolfApp() {
     </div>
   );
 
+  // Helper functions for date update — defined here since state lives here
+  const updateR2BDate=(item,newDate)=>{
+    const newLog=(data.r2bLog||[]).map(e=>{
+      if(e.type==="b2b"&&item.isBb&&e.player===item.player&&e.date===item.currentDate) return {...e,date:newDate};
+      if(e.type!=="b2b"&&!item.isBb&&e.player===item.player&&e.hole===item.hole&&e.date===item.currentDate) return {...e,date:newDate};
+      return e;
+    });
+    save({...data,r2bLog:newLog});
+  };
+  const updateChallengeDate=(item,newDate)=>{
+    const newChallenges=(data.challenges||[]).map(c=>{
+      if(c.title!==item.challengeTitle) return c;
+      return {...c,doneDates:{...(c.doneDates||{}),[item.player]:newDate}};
+    });
+    save({...data,challenges:newChallenges});
+  };
+  const submitVote=()=>{
+    if(!voteName.trim()||!voteModal) return;
+    const {id,type}=voteModal;
+    const challenges=data.challenges||[];
+    save({...data,challenges:challenges.map(c=>{
+      if(c.id!==id) return c;
+      const newUp=[...(c.upvotes||[])].filter(v=>v!==voteName.trim());
+      const newDown=[...(c.downvotes||[])].filter(v=>v!==voteName.trim());
+      if(type==="up") newUp.push(voteName.trim());
+      else newDown.push(voteName.trim());
+      return {...c,upvotes:newUp,downvotes:newDown};
+    })});
+    setVoteModal(null);
+    setVoteName("");
+  };
+
   return (
+    <>
+    {/* Global modals — rendered at root, always viewport-centered regardless of scroll */}
+    {editDateItem&&(
+      <div style={{position:"fixed",top:0,left:0,width:"100%",height:"100%",background:"rgba(0,0,0,0.85)",zIndex:9000,display:"flex",alignItems:"center",justifyContent:"center",padding:20}}>
+        <div className="card" style={{maxWidth:320,width:"100%",borderColor:"#f472b6",background:"#111620"}}>
+          <div style={{fontWeight:700,fontSize:15,marginBottom:6}}>📅 Datum aanpassen</div>
+          <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:13,color:"#8a9a88",marginBottom:12}}>{editDateItem.label}</div>
+          <DatePicker value={editDateItem.newDate||editDateItem.currentDate} onChange={v=>setEditDateItem(d=>({...d,newDate:v}))}/>
+          <div style={{display:"flex",gap:8,marginTop:12}}>
+            <button onClick={()=>setEditDateItem(null)} style={{flex:1,padding:"10px",borderRadius:8,border:"1px solid #2a3a2a",background:"#131a14",color:"#6b7563",fontFamily:"'DM Sans',sans-serif",cursor:"pointer"}}>Annuleer</button>
+            <button onClick={()=>{
+              const nd=editDateItem.newDate||editDateItem.currentDate;
+              if(!nd) return;
+              if(editDateItem.sourceType==="r2b") updateR2BDate(editDateItem,nd);
+              else updateChallengeDate(editDateItem,nd);
+              setEditDateItem(null);
+            }} style={{flex:1,padding:"10px",borderRadius:8,border:"none",background:"#f472b6",color:"#0a0510",fontFamily:"'DM Sans',sans-serif",fontWeight:700,cursor:"pointer"}}>Opslaan</button>
+          </div>
+        </div>
+      </div>
+    )}
+    {voteModal&&(
+      <div style={{position:"fixed",top:0,left:0,width:"100%",height:"100%",background:"rgba(0,0,0,0.85)",zIndex:9000,display:"flex",alignItems:"center",justifyContent:"center",padding:20}}>
+        <div className="card" style={{maxWidth:320,width:"100%",borderColor:voteModal.type==="up"?"#4ade80":"#f87171",background:"#111620"}}>
+          <div style={{fontWeight:700,fontSize:15,marginBottom:6}}>{voteModal.type==="up"?"👍 Upvote":"👎 Downvote"}</div>
+          <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:13,color:"#8a9a88",marginBottom:12}}>
+            {voteModal.type==="down"?"Na 3 downvotes wordt de challenge doorgestreept.":"Wie stemt voor deze challenge?"}
+          </div>
+          <select className="input" value={voteName} onChange={e=>setVoteName(e.target.value)} style={{marginBottom:12}}>
+            <option value="">— kies speler —</option>
+            {PLAYERS.map(p=><option key={p} value={p}>{p}</option>)}
+          </select>
+          <div style={{display:"flex",gap:8}}>
+            <button onClick={()=>{setVoteModal(null);setVoteName("");}} style={{flex:1,padding:"10px",borderRadius:8,border:"1px solid #2a3a2a",background:"#131a14",color:"#6b7563",fontFamily:"'DM Sans',sans-serif",cursor:"pointer"}}>Annuleer</button>
+            <button onClick={submitVote} disabled={!voteName.trim()} style={{flex:1,padding:"10px",borderRadius:8,border:"none",background:voteName.trim()?(voteModal.type==="up"?"#4ade80":"#f87171"):"#2a2a2a",color:voteName.trim()?"#0a0a0a":"#6b7563",fontFamily:"'DM Sans',sans-serif",fontWeight:700,cursor:voteName.trim()?"pointer":"default"}}>
+              Stem {voteModal.type==="up"?"👍":"👎"}
+            </button>
+          </div>
+        </div>
+      </div>
+    )}
     <div style={{minHeight:"100vh",background:"#0a0e1a",fontFamily:"'Playfair Display',Georgia,serif",color:"#e8e4d8"}}>
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700;900&family=DM+Sans:wght@300;400;500&display=swap');
@@ -366,22 +441,23 @@ export default function GolfApp() {
       </div>
 
       <div style={{padding:"16px",maxWidth:960,margin:"0 auto"}} className="anim" key={tab}>
-        {tab==="dashboard" && <Dashboard data={data} save={save}/>}
+        {tab==="dashboard" && <Dashboard data={data} save={save} editDateItem={editDateItem} setEditDateItem={setEditDateItem}/>}
         {tab==="zerogame"  && <ZeroSumGame data={data} save={save}/>}
         {tab==="r2b"       && <R2BTab data={data} save={save}/>}
 
-        {tab==="challenges"&& <ChallengesTab data={data} save={save}/>}
+        {tab==="challenges"&& <ChallengesTab data={data} save={save} voteModal={voteModal} setVoteModal={setVoteModal} voteName={voteName} setVoteName={setVoteName}/>}
         {tab==="scores"    && <ScoresTab data={data} save={save}/>}
         {tab==="tornooien" && <TornooienTab data={data} save={save}/>}
         {tab==="records"   && <RecordsTab data={data} save={save}/>}
         {tab==="handicap"  && <HandicapTab data={data}/>}
       </div>
     </div>
+    </>
   );
 }
 
 // ─── Dashboard ────────────────────────────────────────────────────────────────
-function Dashboard({data,save}){
+function Dashboard({data,save,editDateItem,setEditDateItem}){
   const mStats=calcAllTimeTourney(data.masters,false);
   const uStats=calcAllTimeTourney(data.usOpen,true);
   const allTime=PLAYERS.map(p=>({player:p,pts:(mStats[p]?.pts||0)+(uStats[p]?.pts||0),mPts:mStats[p]?.pts||0,uPts:uStats[p]?.pts||0})).sort((a,b)=>b.pts-a.pts);
@@ -393,7 +469,6 @@ function Dashboard({data,save}){
   const threeMonthsAgo=new Date();threeMonthsAgo.setMonth(threeMonthsAgo.getMonth()-3);
   const [showAllFeed,setShowAllFeed]=useState(false);
   const [showExpanded,setShowExpanded]=useState(false);
-  const [editDateItem,setEditDateItem]=useState(null); // {type, id, player, hole, currentDate}
 
   const me=["🥇","🥈","🥉","4️⃣"];
 
@@ -421,46 +496,8 @@ function Dashboard({data,save}){
   const visibleItems=showExpanded||showAllFeed?feedItems:feedItems.slice(0,6);
   const hasMore=!showAllFeed&&feedItems.length>6;
 
-  // Date update helpers
-  const updateR2BDate=(item,newDate)=>{
-    const newLog=(data.r2bLog||[]).map(e=>{
-      if(e.type==="b2b"&&item.isBb&&e.player===item.player&&e.date===item.date) return {...e,date:newDate};
-      if(e.type!=="b2b"&&!item.isBb&&e.player===item.player&&e.hole===item.hole&&e.date===item.date) return {...e,date:newDate};
-      return e;
-    });
-    save({...data,r2bLog:newLog});
-  };
-  const updateChallengeDate=(item,newDate)=>{
-    const newChallenges=(data.challenges||[]).map(c=>{
-      if(c.title!==item.challengeTitle) return c;
-      return {...c,doneDates:{...(c.doneDates||{}),[item.player]:newDate}};
-    });
-    save({...data,challenges:newChallenges});
-  };
-
   return(
     <div style={{display:"flex",flexDirection:"column",gap:14}}>
-      {/* Date edit modal — rendered at top level for correct fixed positioning */}
-      {editDateItem&&(
-        <div style={{position:"fixed",top:0,left:0,right:0,bottom:0,background:"rgba(0,0,0,0.8)",zIndex:500,display:"flex",alignItems:"center",justifyContent:"center",padding:20}}>
-          <div className="card" style={{maxWidth:320,width:"100%",borderColor:"#f472b6",position:"relative",zIndex:501}}>
-            <div style={{fontWeight:700,fontSize:15,marginBottom:6}}>📅 Datum aanpassen</div>
-            <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:13,color:"#8a9a88",marginBottom:12}}>{editDateItem.label}</div>
-            <DatePicker value={editDateItem.newDate||editDateItem.currentDate} onChange={v=>setEditDateItem(d=>({...d,newDate:v}))}/>
-            <div style={{display:"flex",gap:8,marginTop:12}}>
-              <button onClick={()=>setEditDateItem(null)} style={{flex:1,padding:"10px",borderRadius:8,border:"1px solid #2a3a2a",background:"#131a14",color:"#6b7563",fontFamily:"'DM Sans',sans-serif",cursor:"pointer"}}>Annuleer</button>
-              <button onClick={()=>{
-                const nd=editDateItem.newDate||editDateItem.currentDate;
-                if(!nd) return;
-                if(editDateItem.sourceType==="r2b") updateR2BDate(editDateItem,nd);
-                else updateChallengeDate(editDateItem,nd);
-                setEditDateItem(null);
-              }} style={{flex:1,padding:"10px",borderRadius:8,border:"none",background:"#f472b6",color:"#0a0510",fontFamily:"'DM Sans',sans-serif",fontWeight:700,cursor:"pointer"}}>Opslaan</button>
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* Recente activiteit — full width at top */}
       <div className="card">
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
@@ -1181,7 +1218,7 @@ function RecordsTab({data,save}){
 }
 
 // ─── Challenges Tab ───────────────────────────────────────────────────────────
-function ChallengesTab({data,save}){
+function ChallengesTab({data,save,voteModal,setVoteModal,voteName,setVoteName}){
   const challenges = data.challenges||[];
   const [showForm,setShowForm] = useState(false);
   const [form,setForm] = useState({title:"",desc:"",addedBy:""});
@@ -1217,23 +1254,6 @@ function ChallengesTab({data,save}){
     })});
   };
 
-  const submitVote = () => {
-    if(!voteName.trim()||!voteModal) return;
-    const {id,type} = voteModal;
-    save({...data,challenges:challenges.map(c=>{
-      if(c.id!==id) return c;
-      const upvotes=[...(c.upvotes||[])];
-      const downvotes=[...(c.downvotes||[])];
-      const newUp=upvotes.filter(v=>v!==voteName.trim());
-      const newDown=downvotes.filter(v=>v!==voteName.trim());
-      if(type==="up") newUp.push(voteName.trim());
-      else newDown.push(voteName.trim());
-      return {...c, upvotes:newUp, downvotes:newDown};
-    })});
-    setVoteModal(null);
-    setVoteName("");
-  };
-
   const removeChallenge = (id) => save({...data,challenges:challenges.filter(c=>c.id!==id)});
   const startEdit = (c) => { setForm({title:c.title,desc:c.desc,addedBy:c.addedBy||""}); setEditId(c.id); setShowForm(true); };
 
@@ -1254,27 +1274,6 @@ function ChallengesTab({data,save}){
 
   return(
     <div style={{display:"flex",flexDirection:"column",gap:14}}>
-      {voteModal&&(
-        <div style={{position:"fixed",top:0,left:0,right:0,bottom:0,background:"rgba(0,0,0,0.8)",zIndex:500,display:"flex",alignItems:"center",justifyContent:"center",padding:20}}>
-          <div className="card" style={{maxWidth:320,width:"100%",borderColor:voteModal.type==="up"?"#4ade80":"#f87171",position:"relative",zIndex:501}}>
-            <div style={{fontWeight:700,fontSize:15,marginBottom:6}}>{voteModal.type==="up"?"👍 Upvote":"👎 Downvote"}</div>
-            <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:13,color:"#8a9a88",marginBottom:12}}>
-              {voteModal.type==="down"?"Na 3 downvotes wordt de challenge doorgestreept.":"Wie stemt voor deze challenge?"}
-            </div>
-            <select className="input" value={voteName} onChange={e=>setVoteName(e.target.value)} style={{marginBottom:12}}>
-              <option value="">— kies speler —</option>
-              {PLAYERS.map(p=><option key={p} value={p}>{p}</option>)}
-            </select>
-            <div style={{display:"flex",gap:8}}>
-              <button onClick={()=>{setVoteModal(null);setVoteName("");}} style={{flex:1,padding:"10px",borderRadius:8,border:"1px solid #2a3a2a",background:"#131a14",color:"#6b7563",fontFamily:"'DM Sans',sans-serif",cursor:"pointer"}}>Annuleer</button>
-              <button onClick={submitVote} disabled={!voteName.trim()} style={{flex:1,padding:"10px",borderRadius:8,border:"none",background:voteName.trim()?(voteModal.type==="up"?"#4ade80":"#f87171"):"#2a2a2a",color:voteName.trim()?"#0a0a0a":"#6b7563",fontFamily:"'DM Sans',sans-serif",fontWeight:700,cursor:voteName.trim()?"pointer":"default"}}>
-                Stem {voteModal.type==="up"?"👍":"👎"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
       {total>0&&(
         <div className="card">
           <div style={{fontSize:12,color:"#f472b6",fontFamily:"'DM Sans',sans-serif",letterSpacing:2,textTransform:"uppercase",marginBottom:12}}>🏆 Standings</div>
