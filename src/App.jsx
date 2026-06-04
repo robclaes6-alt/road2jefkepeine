@@ -659,9 +659,9 @@ function ZeroSumGame({data,save}){
         {standings.every(r=>r.played===0)
           ?<div style={{color:"#4b5563",fontFamily:"'DM Sans',sans-serif",fontSize:13,padding:"8px 0"}}>Nog geen matches gespeeld. Voeg de eerste match toe!</div>
           :<table><thead><tr><th>#</th><th>Speler</th><th>Punten</th><th>Gespeeld</th><th>Gewonnen</th><th>Verloren</th></tr></thead>
-            <tbody>{standings.map((row,i)=>(
+            <tbody>{getTiedRank(standings,r=>r.pts).map(({item:row,medal})=>(
               <tr key={row.player}>
-                <td className="fade">{i+1}</td>
+                <td style={{fontFamily:"'DM Sans',sans-serif",fontSize:13}}>{medal}</td>
                 <td style={{fontWeight:700,color:PC[row.player]}}>{row.player}</td>
                 <td style={{fontWeight:700,fontSize:17,color:row.pts>0?"#4ade80":row.pts<0?"#f87171":"#6b7563"}}>{row.pts>0?"+":""}{row.pts}</td>
                 <td className="fade">{row.played}</td>
@@ -905,9 +905,9 @@ function R2BTab({data,save}){
       {view==="history"?<R2BHistory data={data}/>:(
         <>
           <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:8,marginBottom:14}}>
-            {ranked.map((p,i)=>(
-              <div key={p} className="card" style={{textAlign:"center",padding:"11px 6px",borderColor:i===0?"#e8a838":"#1e2a1e"}}>
-                <div style={{fontSize:10,color:"#6b7563",fontFamily:"'DM Sans',sans-serif",marginBottom:3}}>{me[i]} {p}</div>
+            {getTiedRank(ranked,p=>totals[p]).map(({item:p,medal})=>(
+              <div key={p} className="card" style={{textAlign:"center",padding:"11px 6px",borderColor:medal==="🥇"?"#e8a838":"#1e2a1e"}}>
+                <div style={{fontSize:10,color:"#6b7563",fontFamily:"'DM Sans',sans-serif",marginBottom:3}}>{medal} {p}</div>
                 <div style={{fontSize:26,fontWeight:900,color:PC[p]}}>{totals[p]}</div>
                 <div style={{fontSize:10,color:"#6b7563",fontFamily:"'DM Sans',sans-serif",marginTop:3}}>{sd.holes[p]?.reduce((a,b)=>a+b,0)||0} birdies & {sd.b2b?.[p]||0} back2back</div>
               </div>
@@ -1044,9 +1044,9 @@ function SingleTourneyTab({data,save,tourney}){
       <div className="card">
         <div style={{fontSize:12,color:"#e8a838",fontFamily:"'DM Sans',sans-serif",letterSpacing:2,textTransform:"uppercase",marginBottom:10}}>All-Time Stand</div>
         <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(110px,1fr))",gap:10}}>
-          {allTimeSorted.map((p,i)=>(
-            <div key={p} style={{textAlign:"center",background:"#131a14",borderRadius:10,padding:"10px 6px",border:`1px solid ${i===0?"#e8a838":"#1e2a1e"}`}}>
-              <div style={{fontSize:10,color:"#6b7563",fontFamily:"'DM Sans',sans-serif",marginBottom:3}}>{me[i]} {p}</div>
+          {getTiedRank(allTimeSorted,p=>stats[p]?.pts||0).map(({item:p,medal})=>(
+            <div key={p} style={{textAlign:"center",background:"#131a14",borderRadius:10,padding:"10px 6px",border:`1px solid ${medal==="🥇"?"#e8a838":"#1e2a1e"}`}}>
+              <div style={{fontSize:10,color:"#6b7563",fontFamily:"'DM Sans',sans-serif",marginBottom:3}}>{medal} {p}</div>
               <div style={{fontSize:22,fontWeight:900,color:PC[p]}}>{stats[p]?.pts||0}</div>
               <div style={{fontSize:10,color:"#4b5563",fontFamily:"'DM Sans',sans-serif",marginTop:3}}>🥇{stats[p]?.p1||0} 🥈{stats[p]?.p2||0} 🥉{stats[p]?.p3||0} 💀{stats[p]?.p4||0}</div>
             </div>
@@ -1311,12 +1311,12 @@ function ChallengesTab({data,save,voteModal,setVoteModal,voteName,setVoteName}){
         <div className="card">
           <div style={{fontSize:12,color:"#f472b6",fontFamily:"'DM Sans',sans-serif",letterSpacing:2,textTransform:"uppercase",marginBottom:12}}>🏆 Standings</div>
           <table><thead><tr><th>Speler</th><th>Voltooid</th><th>Voortgang</th></tr></thead>
-          <tbody>{tiedLabel(ranked,p=>totals[p]).map(({item:p,label})=>{
+          <tbody>{getTiedRank(ranked,p=>totals[p]).map(({item:p,medal})=>{
             const pct=total>0?Math.round(totals[p]/total*100):0;
             const allDone=totals[p]===total&&total>0;
             return(
               <tr key={p}>
-                <td style={{fontWeight:700,color:PC[p]}}>{label} {p} {allDone&&"🎉"}</td>
+                <td style={{fontWeight:700,color:PC[p]}}>{medal} {p} {allDone&&"🎉"}</td>
                 <td style={{fontWeight:700,fontSize:17,color:PC[p]}}>{totals[p]}/{total}</td>
                 <td style={{width:160}}>
                   <div style={{background:"#131a14",borderRadius:4,height:8,overflow:"hidden"}}>
@@ -1834,7 +1834,7 @@ function TornooienTab({data,save}){
             const mS=mastersStats[p]||{};const uS=usopenStats[p]||{};
             const total=(mS.pts||0)+(uS.pts||0);
             return(
-              <div key={p} style={{textAlign:"center",background:"#131a14",borderRadius:10,padding:"10px 6px",border:`1px solid ${i===0?"#e8a838":"#1e2a1e"}`}}>
+              <div key={p} style={{textAlign:"center",background:"#131a14",borderRadius:10,padding:"10px 6px",border:`1px solid ${medal==="🥇"?"#e8a838":"#1e2a1e"}`}}>
                 <div style={{fontSize:10,color:"#6b7563",fontFamily:"'DM Sans',sans-serif",marginBottom:3}}>{medal} {p}</div>
                 <div style={{fontSize:24,fontWeight:900,color:PC[p]}}>{total}</div>
                 <div style={{fontSize:10,color:"#4b5563",fontFamily:"'DM Sans',sans-serif",marginTop:3}}>
@@ -1915,9 +1915,9 @@ function RyderCupTab({data,save}){
       <div className="card">
         <div style={{fontSize:12,color:"#60a5fa",fontFamily:"'DM Sans',sans-serif",letterSpacing:2,textTransform:"uppercase",marginBottom:10}}>All-Time Ryder Cup Wins</div>
         <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(100px,1fr))",gap:10}}>
-          {sorted.map((p,i)=>(
-            <div key={p} style={{textAlign:"center",background:"#131a14",borderRadius:10,padding:"10px 6px",border:`1px solid ${i===0?"#60a5fa":"#1e2a1e"}`}}>
-              <div style={{fontSize:10,color:"#6b7563",fontFamily:"'DM Sans',sans-serif",marginBottom:3}}>{me[i]} {p}</div>
+          {getTiedRank(sorted,p=>ryderWins[p]).map(({item:p,medal})=>(
+            <div key={p} style={{textAlign:"center",background:"#131a14",borderRadius:10,padding:"10px 6px",border:`1px solid ${medal==="🥇"?"#60a5fa":"#1e2a1e"}`}}>
+              <div style={{fontSize:10,color:"#6b7563",fontFamily:"'DM Sans',sans-serif",marginBottom:3}}>{medal} {p}</div>
               <div style={{fontSize:22,fontWeight:900,color:PC[p]}}>{ryderWins[p]}</div>
               <div style={{fontSize:10,color:"#4b5563",fontFamily:"'DM Sans',sans-serif",marginTop:3}}>{ryderData.filter(r=>r.team1.includes(p)||r.team2.includes(p)).length} edities</div>
             </div>
