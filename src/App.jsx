@@ -137,8 +137,9 @@ function DatePicker({ value, onChange }) {
 
 // Portal-based Modal — always renders on document.body, never affected by parent scroll/transform
 function Modal({children}){
+  if(typeof document === "undefined") return null;
   return createPortal(
-    <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.85)",zIndex:99999,display:"flex",alignItems:"center",justifyContent:"center",padding:"20px",boxSizing:"border-box"}}>
+    <div style={{position:"fixed",top:0,left:0,right:0,bottom:0,background:"rgba(0,0,0,0.85)",zIndex:99999,display:"flex",alignItems:"center",justifyContent:"center",padding:"20px",boxSizing:"border-box"}}>
       {children}
     </div>,
     document.body
@@ -222,6 +223,16 @@ const defaultData = {
     ],
   },
 };
+
+function getTiedRank(items, getVal){
+  const medals=["🥇","🥈","🥉","4️⃣"];
+  return items.map(item=>{
+    const val=getVal(item);
+    const rank=items.filter(x=>getVal(x)>val).length;
+    const tied=items.filter(x=>getVal(x)===val).length>1;
+    return {item, medal: tied?"T"+(rank+1):(medals[rank]||String(rank+1))};
+  });
+}
 
 const PLAYERS = ["Rob","Joost","Thomas","Joris"];
 const PC = { Rob:"#e8a838", Joost:"#4ade80", Thomas:"#f472b6", Joris:"#60a5fa" };
@@ -578,9 +589,9 @@ function Dashboard({data,save,editDateItem,setEditDateItem}){
           {zsStandings.every(r=>r.played===0)
             ? <div style={{color:"#4b5563",fontFamily:"'DM Sans',sans-serif",fontSize:13}}>Nog geen matches gespeeld.</div>
             : <table><thead><tr><th>Speler</th><th>Ptn</th><th>W/L</th></tr></thead>
-              <tbody>{zsStandings.map((row,i)=>(
+              <tbody>{getTiedRank(zsStandings,r=>r.pts).map(({item:row,medal})=>(
                 <tr key={row.player}>
-                  <td style={{fontWeight:700,color:PC[row.player]}}>{me[i]} {row.player}</td>
+                  <td style={{fontWeight:700,color:PC[row.player]}}>{medal} {row.player}</td>
                   <td style={{fontWeight:700,fontSize:17,color:row.pts>0?"#4ade80":row.pts<0?"#f87171":"#6b7563"}}>{row.pts>0?"+":""}{row.pts}</td>
                   <td className="fade">{row.won}/{row.played}</td>
                 </tr>
@@ -591,9 +602,9 @@ function Dashboard({data,save,editDateItem,setEditDateItem}){
         <div className="card">
           <div style={{fontSize:12,color:"#60a5fa",fontFamily:"'DM Sans',sans-serif",letterSpacing:2,textTransform:"uppercase",marginBottom:12}}>🐦 R2B {latestR2B}</div>
           <table><thead><tr><th>Speler</th><th>Ptn</th><th>Birdies</th><th>B2B</th></tr></thead>
-          <tbody>{r2bRanked.map((p,i)=>(
+          <tbody>{getTiedRank(r2bRanked,p=>r2bTotals[p]).map(({item:p,medal})=>(
             <tr key={p}>
-              <td style={{fontWeight:700,color:PC[p]}}>{me[i]} {p}</td>
+              <td style={{fontWeight:700,color:PC[p]}}>{medal} {p}</td>
               <td style={{fontWeight:700,fontSize:17,color:"#4ade80"}}>{r2bTotals[p]}</td>
               <td className="fade">{data.r2b[latestR2B].holes[p]?.reduce((a,b)=>a+b,0)||0}</td>
               <td style={{color:"#e8a838"}}>{data.r2b[latestR2B].b2b?.[p]||0}</td>
@@ -606,9 +617,9 @@ function Dashboard({data,save,editDateItem,setEditDateItem}){
       <div className="card">
         <div style={{fontSize:12,color:"#4ade80",fontFamily:"'DM Sans',sans-serif",letterSpacing:2,textTransform:"uppercase",marginBottom:12}}>🏆 All-Time Tornooi Klassement</div>
         <table><thead><tr><th>Speler</th><th>Totaal</th><th>Masters</th><th>US Open</th></tr></thead>
-        <tbody>{allTime.map((row,i)=>(
+        <tbody>{getTiedRank(allTime,r=>r.pts).map(({item:row,medal})=>(
           <tr key={row.player}>
-            <td style={{fontWeight:700,color:PC[row.player]}}>{me[i]} {row.player}</td>
+            <td style={{fontWeight:700,color:PC[row.player]}}>{medal} {row.player}</td>
             <td style={{fontWeight:700,fontSize:17,color:"#e8a838"}}>{row.pts}</td>
             <td className="fade">{row.mPts}</td><td className="fade">{row.uPts}</td>
           </tr>
@@ -1560,8 +1571,8 @@ function ScoresTab({data,save}){
           {rankBestScore.length>0&&(
             <div className="card">
               <div style={{fontSize:11,color:"#e8a838",fontFamily:"'DM Sans',sans-serif",letterSpacing:2,textTransform:"uppercase",marginBottom:10}}>🏆 Beste Score (18H)</div>
-              {rankBestScore.map((p,i)=><div key={p} style={{display:"flex",justifyContent:"space-between",padding:"5px 0",fontFamily:"'DM Sans',sans-serif",fontSize:13,borderBottom:"1px solid #131a14"}}>
-                <span style={{color:PC[p],fontWeight:600}}>{me[i]} {p}</span>
+              {getTiedRank(rankBestScore,p=>-(best(playerScores(p).filter(s=>s.holes===18).map(s=>s.score))||999)).map(({item:p,medal})=><div key={p} style={{display:"flex",justifyContent:"space-between",padding:"5px 0",fontFamily:"'DM Sans',sans-serif",fontSize:13,borderBottom:"1px solid #131a14"}}>
+                <span style={{color:PC[p],fontWeight:600}}>{medal} {p}</span>
                 <span style={{color:"#e8a838",fontWeight:700}}>{(v=>v===0?"E":v>0?"+"+v:v)(best(playerScores(p).filter(s=>s.holes===18).map(s=>s.score)))}</span>
               </div>)}
             </div>
@@ -1569,16 +1580,16 @@ function ScoresTab({data,save}){
           {rankAvgScore.length>0&&(
             <div className="card">
               <div style={{fontSize:11,color:"#4ade80",fontFamily:"'DM Sans',sans-serif",letterSpacing:2,textTransform:"uppercase",marginBottom:10}}>📈 Gemiddelde Score (18H)</div>
-              {rankAvgScore.map((p,i)=><div key={p} style={{display:"flex",justifyContent:"space-between",padding:"5px 0",fontFamily:"'DM Sans',sans-serif",fontSize:13,borderBottom:"1px solid #131a14"}}>
-                <span style={{color:PC[p],fontWeight:600}}>{me[i]} {p}</span>
+              {getTiedRank(rankAvgScore,p=>-(avg(playerScores(p).filter(s=>s.holes===18).map(s=>s.score))||999)).map(({item:p,medal})=><div key={p} style={{display:"flex",justifyContent:"space-between",padding:"5px 0",fontFamily:"'DM Sans',sans-serif",fontSize:13,borderBottom:"1px solid #131a14"}}>
+                <span style={{color:PC[p],fontWeight:600}}>{medal} {p}</span>
                 <span style={{color:"#4ade80",fontWeight:700}}>{(v=>v===0?"E":v>0?"+"+v:v)(avg(playerScores(p).filter(s=>s.holes===18).map(s=>s.score)))}</span>
               </div>)}
             </div>
           )}
           <div className="card">
             <div style={{fontSize:11,color:"#60a5fa",fontFamily:"'DM Sans',sans-serif",letterSpacing:2,textTransform:"uppercase",marginBottom:10}}>🔁 Meeste Rondjes</div>
-            {rankMostRounds.map((p,i)=><div key={p} style={{display:"flex",justifyContent:"space-between",padding:"5px 0",fontFamily:"'DM Sans',sans-serif",fontSize:13,borderBottom:"1px solid #131a14"}}>
-              <span style={{color:PC[p],fontWeight:600}}>{me[i]} {p}</span>
+            {getTiedRank(rankMostRounds,p=>playerScores(p).length).map(({item:p,medal})=><div key={p} style={{display:"flex",justifyContent:"space-between",padding:"5px 0",fontFamily:"'DM Sans',sans-serif",fontSize:13,borderBottom:"1px solid #131a14"}}>
+              <span style={{color:PC[p],fontWeight:600}}>{medal} {p}</span>
               <span style={{color:"#60a5fa",fontWeight:700}}>{playerScores(p).length}</span>
             </div>)}
           </div>
@@ -1820,12 +1831,12 @@ function TornooienTab({data,save}){
       <div className="card">
         <div style={{fontSize:12,color:"#e8a838",fontFamily:"'DM Sans',sans-serif",letterSpacing:2,textTransform:"uppercase",marginBottom:10}}>🏆 All-Time Tornooi Klassement</div>
         <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(140px,1fr))",gap:10,marginBottom:10}}>
-          {allTimeSorted.map((p,i)=>{
+          {getTiedRank(allTimeSorted,p=>(mastersStats[p]?.pts||0)+(usopenStats[p]?.pts||0)).map(({item:p,medal})=>{
             const mS=mastersStats[p]||{};const uS=usopenStats[p]||{};
             const total=(mS.pts||0)+(uS.pts||0);
             return(
               <div key={p} style={{textAlign:"center",background:"#131a14",borderRadius:10,padding:"10px 6px",border:`1px solid ${i===0?"#e8a838":"#1e2a1e"}`}}>
-                <div style={{fontSize:10,color:"#6b7563",fontFamily:"'DM Sans',sans-serif",marginBottom:3}}>{me[i]} {p}</div>
+                <div style={{fontSize:10,color:"#6b7563",fontFamily:"'DM Sans',sans-serif",marginBottom:3}}>{medal} {p}</div>
                 <div style={{fontSize:24,fontWeight:900,color:PC[p]}}>{total}</div>
                 <div style={{fontSize:10,color:"#4b5563",fontFamily:"'DM Sans',sans-serif",marginTop:3}}>
                   M: 🥇{mS.p1||0} 🥈{mS.p2||0} 🥉{mS.p3||0} 💀{mS.p4||0}
