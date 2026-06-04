@@ -293,11 +293,15 @@ export default function GolfApp() {
     getDoc(DOC_REF).then(snap=>{
       if(snap.exists()){
         const loaded={...defaultData,...snap.data()};
-        // Migrate: add any missing course rows from defaultData
-        const existingKeys=new Set((loaded.records?.courses||[]).map(r=>r.course+"||"+(r.sub||"")));
+        // Migrate: remove old course names and add any missing new ones
+        const OLD_NAMES=["Millenium 18","Haverleij 18","Ternesse 18","Rigenee 18","Gendersteyn G/R"];
+        const VALID_NAMES=["Millenium","Rigenee","Ternesse","Haverleij","Gendersteyn"];
+        let filteredCourses=(loaded.records?.courses||[]).filter(r=>!OLD_NAMES.includes(r.course));
+        const existingKeys=new Set(filteredCourses.map(r=>r.course+"||"+(r.sub||"")));
         const missing=defaultData.records.courses.filter(r=>!existingKeys.has(r.course+"||"+(r.sub||"")));
-        if(missing.length>0){
-          loaded.records={...loaded.records,courses:[...(loaded.records?.courses||[]),...missing]};
+        const changed=missing.length>0||(loaded.records?.courses||[]).some(r=>OLD_NAMES.includes(r.course));
+        if(changed){
+          loaded.records={...loaded.records,courses:[...filteredCourses,...missing]};
           setDoc(DOC_REF, loaded).catch(()=>{});
         }
         setData(loaded);
