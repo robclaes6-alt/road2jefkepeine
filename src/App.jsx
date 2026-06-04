@@ -481,6 +481,31 @@ export default function GolfApp() {
         ))}
       </div>
 
+      {/* Reigning Champions strip */}
+      {(()=>{
+        const mastersSorted=[...(data.masters||[])].sort((a,b)=>b.year-a.year);
+        const usopenSorted=[...(data.usOpen||[])].sort((a,b)=>b.year-a.year);
+        const ryderData=data.ryderCup||RYDER_DEFAULT;
+        const ryderSortedByYear=[...ryderData].sort((a,b)=>b.year-a.year);
+        const champs=[
+          {label:"Masters",icon:"🏆",name:mastersSorted[0]?.results?.[0],year:mastersSorted[0]?.year,color:"#e8a838",goTo:"tornooien",subView:"masters"},
+          {label:"US Open",icon:"🌊",name:usopenSorted[0]?.results?.[0],year:usopenSorted[0]?.year,color:"#60a5fa",goTo:"tornooien",subView:"usopen"},
+          {label:"Ryder Cup",icon:"⛳",name:(()=>{const r=ryderSortedByYear[0];if(!r)return null;return(r.winner==="team1"?r.team1:r.team2).join(" & ");})(),year:ryderSortedByYear[0]?.year,color:"#4ade80",goTo:"tornooien",subView:"ryder"},
+        ].filter(c=>c.name);
+        if(!champs.length) return null;
+        return(
+          <div style={{display:"flex",gap:0,borderBottom:"1px solid #1e2a1e",background:"#080d10",overflowX:"auto"}}>
+            {champs.map((c,i)=>(
+              <button key={c.label} onClick={()=>{setTab(c.goTo);}} style={{flex:"1 1 0",minWidth:0,display:"flex",flexDirection:"column",alignItems:"center",padding:"6px 8px",background:"transparent",border:"none",borderRight:i<champs.length-1?"1px solid #1a2a1a":"none",cursor:"pointer",gap:1}}>
+                <div style={{fontSize:9,color:"#4b5563",fontFamily:"'DM Sans',sans-serif",letterSpacing:1,textTransform:"uppercase"}}>{c.icon} {c.label}</div>
+                <div style={{fontSize:12,fontWeight:700,color:PC[c.name]||"#e8e4d8",fontFamily:"'DM Sans',sans-serif",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis",maxWidth:"100%"}}>{c.name}</div>
+                {c.year&&<div style={{fontSize:9,color:"#4b5563",fontFamily:"'DM Sans',sans-serif"}}>{c.year}</div>}
+              </button>
+            ))}
+          </div>
+        );
+      })()}
+
       <div style={{padding:"16px",maxWidth:960,margin:"0 auto"}} className="anim" key={tab}>
         {tab==="dashboard" && <Dashboard data={data} save={save} editDateItem={editDateItem} setEditDateItem={setEditDateItem}/>}
         {tab==="zerogame"  && <ZeroSumGame data={data} save={save}/>}
@@ -488,7 +513,7 @@ export default function GolfApp() {
 
         {tab==="challenges"&& <ChallengesTab data={data} save={save} voteModal={voteModal} setVoteModal={setVoteModal} voteName={voteName} setVoteName={setVoteName}/>}
         {tab==="scores"    && <ScoresTab data={data} save={save}/>}
-        {tab==="tornooien" && <TornooienTab data={data} save={save}/>}
+        {tab==="tornooien" && <TornooienTab data={data} save={save} setTab={setTab}/>}
         {tab==="records"   && <RecordsTab data={data} save={save}/>}
         {tab==="handicap"  && <HandicapTab data={data}/>}
       </div>
@@ -1894,7 +1919,7 @@ const RYDER_DEFAULT = [
   {year:2025,team1:["Joost","Thomas"],team2:["Rob","Joris"],winner:"team1",notes:""},
 ];
 
-function TornooienTab({data,save}){
+function TornooienTab({data,save,setTab}){
   const [view,setView] = useState("overview"); // overview | masters | usopen | ryder
   const mastersStats = calcAllTimeTourney(data.masters||[],false);
   const usopenStats  = calcAllTimeTourney(data.usOpen||[],true);
@@ -1947,6 +1972,25 @@ function TornooienTab({data,save}){
 
   return(
     <div style={{display:"flex",flexDirection:"column",gap:14}}>
+      {/* Reigning Champions */}
+      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(160px,1fr))",gap:10}}>
+        {[
+          {label:"🏆 Masters Champion",color:"#e8a838",name:currentMasters,year:mastersSorted[0]?.year,photo:MASTERS_CHAMP_PHOTO,goView:"masters"},
+          {label:"🌊 US Open Champion",color:"#60a5fa",name:currentUsOpen,year:usopenSorted[0]?.year,goView:"usopen"},
+          {label:"⛳ Ryder Cup Champions",color:"#4ade80",name:currentRyder?.join(" & "),year:ryderSortedByYear[0]?.year,goView:"ryder"},
+        ].filter(c=>c.name).map(c=>(
+          <button key={c.label} onClick={()=>setView(c.goView)} style={{background:`linear-gradient(135deg,${c.color}12,#0d1218)`,border:`1px solid ${c.color}33`,borderRadius:12,padding:"12px",cursor:"pointer",textAlign:"left",display:"flex",gap:10,alignItems:"center"}}>
+            {c.photo&&<img src={c.photo} alt="" style={{width:44,height:44,borderRadius:"50%",objectFit:"cover",objectPosition:"center top",border:`2px solid ${c.color}`,flexShrink:0}}/>}
+            {!c.photo&&<div style={{width:44,height:44,borderRadius:"50%",background:`${c.color}22`,border:`2px solid ${c.color}33`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:20,flexShrink:0}}>🏆</div>}
+            <div style={{minWidth:0}}>
+              <div style={{fontSize:10,color:c.color,fontFamily:"'DM Sans',sans-serif",letterSpacing:1,textTransform:"uppercase",marginBottom:2}}>{c.label}</div>
+              <div style={{fontSize:14,fontWeight:700,color:PC[c.name]||"#e8e4d8",fontFamily:"'DM Sans',sans-serif",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{c.name}</div>
+              {c.year&&<div style={{fontSize:10,color:"#6b7563",fontFamily:"'DM Sans',sans-serif",marginTop:1}}>{c.year}</div>}
+            </div>
+          </button>
+        ))}
+      </div>
+
       {/* Overall all-time */}
       <div className="card">
         <div style={{fontSize:12,color:"#e8a838",fontFamily:"'DM Sans',sans-serif",letterSpacing:2,textTransform:"uppercase",marginBottom:10}}>🏆 All-Time Tornooi Klassement</div>
