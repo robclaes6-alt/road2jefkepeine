@@ -440,10 +440,10 @@ function Dashboard({data,save}){
 
   return(
     <div style={{display:"flex",flexDirection:"column",gap:14}}>
-      {/* Date edit modal */}
+      {/* Date edit modal — rendered at top level for correct fixed positioning */}
       {editDateItem&&(
-        <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.75)",zIndex:300,display:"flex",alignItems:"center",justifyContent:"center",padding:20}}>
-          <div className="card" style={{maxWidth:320,width:"100%",borderColor:"#f472b6"}}>
+        <div style={{position:"fixed",top:0,left:0,right:0,bottom:0,background:"rgba(0,0,0,0.8)",zIndex:500,display:"flex",alignItems:"center",justifyContent:"center",padding:20}}>
+          <div className="card" style={{maxWidth:320,width:"100%",borderColor:"#f472b6",position:"relative",zIndex:501}}>
             <div style={{fontWeight:700,fontSize:15,marginBottom:6}}>📅 Datum aanpassen</div>
             <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:13,color:"#8a9a88",marginBottom:12}}>{editDateItem.label}</div>
             <DatePicker value={editDateItem.newDate||editDateItem.currentDate} onChange={v=>setEditDateItem(d=>({...d,newDate:v}))}/>
@@ -451,6 +451,7 @@ function Dashboard({data,save}){
               <button onClick={()=>setEditDateItem(null)} style={{flex:1,padding:"10px",borderRadius:8,border:"1px solid #2a3a2a",background:"#131a14",color:"#6b7563",fontFamily:"'DM Sans',sans-serif",cursor:"pointer"}}>Annuleer</button>
               <button onClick={()=>{
                 const nd=editDateItem.newDate||editDateItem.currentDate;
+                if(!nd) return;
                 if(editDateItem.sourceType==="r2b") updateR2BDate(editDateItem,nd);
                 else updateChallengeDate(editDateItem,nd);
                 setEditDateItem(null);
@@ -1254,8 +1255,8 @@ function ChallengesTab({data,save}){
   return(
     <div style={{display:"flex",flexDirection:"column",gap:14}}>
       {voteModal&&(
-        <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.75)",zIndex:300,display:"flex",alignItems:"center",justifyContent:"center",padding:20}}>
-          <div className="card" style={{maxWidth:320,width:"100%",borderColor:voteModal.type==="up"?"#4ade80":"#f87171"}}>
+        <div style={{position:"fixed",top:0,left:0,right:0,bottom:0,background:"rgba(0,0,0,0.8)",zIndex:500,display:"flex",alignItems:"center",justifyContent:"center",padding:20}}>
+          <div className="card" style={{maxWidth:320,width:"100%",borderColor:voteModal.type==="up"?"#4ade80":"#f87171",position:"relative",zIndex:501}}>
             <div style={{fontWeight:700,fontSize:15,marginBottom:6}}>{voteModal.type==="up"?"👍 Upvote":"👎 Downvote"}</div>
             <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:13,color:"#8a9a88",marginBottom:12}}>
               {voteModal.type==="down"?"Na 3 downvotes wordt de challenge doorgestreept.":"Wie stemt voor deze challenge?"}
