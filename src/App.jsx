@@ -312,27 +312,32 @@ export default function GolfApp() {
     </div>
   );
 
-  // Helper functions for date update — defined here since state lives here
+  // Use a ref so update helpers always see latest data
+  const dataRef = useRef(data);
+  useEffect(()=>{ dataRef.current=data; },[data]);
+
   const updateR2BDate=(item,newDate)=>{
-    const newLog=(data.r2bLog||[]).map(e=>{
+    const d=dataRef.current;
+    const newLog=(d.r2bLog||[]).map(e=>{
       if(e.type==="b2b"&&item.isBb&&e.player===item.player&&e.date===item.currentDate) return {...e,date:newDate};
       if(e.type!=="b2b"&&!item.isBb&&e.player===item.player&&e.hole===item.hole&&e.date===item.currentDate) return {...e,date:newDate};
       return e;
     });
-    save({...data,r2bLog:newLog});
+    save({...d,r2bLog:newLog});
   };
   const updateChallengeDate=(item,newDate)=>{
-    const newChallenges=(data.challenges||[]).map(c=>{
+    const d=dataRef.current;
+    const newChallenges=(d.challenges||[]).map(c=>{
       if(c.title!==item.challengeTitle) return c;
       return {...c,doneDates:{...(c.doneDates||{}),[item.player]:newDate}};
     });
-    save({...data,challenges:newChallenges});
+    save({...d,challenges:newChallenges});
   };
   const submitVote=()=>{
     if(!voteName.trim()||!voteModal) return;
+    const d=dataRef.current;
     const {id,type}=voteModal;
-    const challenges=data.challenges||[];
-    save({...data,challenges:challenges.map(c=>{
+    save({...d,challenges:(d.challenges||[]).map(c=>{
       if(c.id!==id) return c;
       const newUp=[...(c.upvotes||[])].filter(v=>v!==voteName.trim());
       const newDown=[...(c.downvotes||[])].filter(v=>v!==voteName.trim());
@@ -344,42 +349,45 @@ export default function GolfApp() {
     setVoteName("");
   };
 
+  const modalOverlay={position:"fixed",top:0,left:0,width:"100vw",height:"100vh",background:"rgba(0,0,0,0.85)",zIndex:9999,display:"flex",alignItems:"center",justifyContent:"center",padding:"20px",boxSizing:"border-box"};
+  const modalCard={background:"#111620",border:"1px solid #2a3a2a",borderRadius:14,padding:20,maxWidth:340,width:"100%",fontFamily:"'DM Sans',sans-serif"};
+  const modalBtn=(primary,color)=>({flex:1,padding:"11px",borderRadius:8,border:primary?"none":"1px solid #2a3a2a",background:primary?(color||"#f472b6"):"#131a14",color:primary?"#0a0510":"#6b7563",fontFamily:"'DM Sans',sans-serif",fontWeight:primary?700:400,cursor:"pointer",fontSize:14});
+
   return (
     <>
-    {/* Global modals — rendered at root, always viewport-centered regardless of scroll */}
     {editDateItem&&(
-      <div style={{position:"fixed",top:0,left:0,width:"100%",height:"100%",background:"rgba(0,0,0,0.85)",zIndex:9000,display:"flex",alignItems:"center",justifyContent:"center",padding:20}}>
-        <div className="card" style={{maxWidth:320,width:"100%",borderColor:"#f472b6",background:"#111620"}}>
-          <div style={{fontWeight:700,fontSize:15,marginBottom:6}}>📅 Datum aanpassen</div>
-          <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:13,color:"#8a9a88",marginBottom:12}}>{editDateItem.label}</div>
+      <div style={modalOverlay}>
+        <div style={{...modalCard,borderColor:"#f472b6"}}>
+          <div style={{fontWeight:700,fontSize:15,color:"#e8e4d8",marginBottom:6}}>📅 Datum aanpassen</div>
+          <div style={{fontSize:13,color:"#8a9a88",marginBottom:14,lineHeight:1.4}}>{editDateItem.label}</div>
           <DatePicker value={editDateItem.newDate||editDateItem.currentDate} onChange={v=>setEditDateItem(d=>({...d,newDate:v}))}/>
-          <div style={{display:"flex",gap:8,marginTop:12}}>
-            <button onClick={()=>setEditDateItem(null)} style={{flex:1,padding:"10px",borderRadius:8,border:"1px solid #2a3a2a",background:"#131a14",color:"#6b7563",fontFamily:"'DM Sans',sans-serif",cursor:"pointer"}}>Annuleer</button>
+          <div style={{display:"flex",gap:8,marginTop:14}}>
+            <button onClick={()=>setEditDateItem(null)} style={modalBtn(false)}>Annuleer</button>
             <button onClick={()=>{
               const nd=editDateItem.newDate||editDateItem.currentDate;
               if(!nd) return;
               if(editDateItem.sourceType==="r2b") updateR2BDate(editDateItem,nd);
               else updateChallengeDate(editDateItem,nd);
               setEditDateItem(null);
-            }} style={{flex:1,padding:"10px",borderRadius:8,border:"none",background:"#f472b6",color:"#0a0510",fontFamily:"'DM Sans',sans-serif",fontWeight:700,cursor:"pointer"}}>Opslaan</button>
+            }} style={modalBtn(true,"#f472b6")}>Opslaan</button>
           </div>
         </div>
       </div>
     )}
     {voteModal&&(
-      <div style={{position:"fixed",top:0,left:0,width:"100%",height:"100%",background:"rgba(0,0,0,0.85)",zIndex:9000,display:"flex",alignItems:"center",justifyContent:"center",padding:20}}>
-        <div className="card" style={{maxWidth:320,width:"100%",borderColor:voteModal.type==="up"?"#4ade80":"#f87171",background:"#111620"}}>
-          <div style={{fontWeight:700,fontSize:15,marginBottom:6}}>{voteModal.type==="up"?"👍 Upvote":"👎 Downvote"}</div>
-          <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:13,color:"#8a9a88",marginBottom:12}}>
+      <div style={modalOverlay}>
+        <div style={{...modalCard,borderColor:voteModal.type==="up"?"#4ade80":"#f87171"}}>
+          <div style={{fontWeight:700,fontSize:15,color:"#e8e4d8",marginBottom:6}}>{voteModal.type==="up"?"👍 Upvote":"👎 Downvote"}</div>
+          <div style={{fontSize:13,color:"#8a9a88",marginBottom:14}}>
             {voteModal.type==="down"?"Na 3 downvotes wordt de challenge doorgestreept.":"Wie stemt voor deze challenge?"}
           </div>
-          <select className="input" value={voteName} onChange={e=>setVoteName(e.target.value)} style={{marginBottom:12}}>
+          <select value={voteName} onChange={e=>setVoteName(e.target.value)} style={{background:"#131a14",border:"1px solid #2a3a2a",borderRadius:8,color:"#e8e4d8",padding:"10px 12px",fontFamily:"'DM Sans',sans-serif",fontSize:15,width:"100%",marginBottom:14}}>
             <option value="">— kies speler —</option>
             {PLAYERS.map(p=><option key={p} value={p}>{p}</option>)}
           </select>
           <div style={{display:"flex",gap:8}}>
-            <button onClick={()=>{setVoteModal(null);setVoteName("");}} style={{flex:1,padding:"10px",borderRadius:8,border:"1px solid #2a3a2a",background:"#131a14",color:"#6b7563",fontFamily:"'DM Sans',sans-serif",cursor:"pointer"}}>Annuleer</button>
-            <button onClick={submitVote} disabled={!voteName.trim()} style={{flex:1,padding:"10px",borderRadius:8,border:"none",background:voteName.trim()?(voteModal.type==="up"?"#4ade80":"#f87171"):"#2a2a2a",color:voteName.trim()?"#0a0a0a":"#6b7563",fontFamily:"'DM Sans',sans-serif",fontWeight:700,cursor:voteName.trim()?"pointer":"default"}}>
+            <button onClick={()=>{setVoteModal(null);setVoteName("");}} style={modalBtn(false)}>Annuleer</button>
+            <button onClick={submitVote} disabled={!voteName.trim()} style={modalBtn(true,voteModal.type==="up"?"#4ade80":"#f87171")}>
               Stem {voteModal.type==="up"?"👍":"👎"}
             </button>
           </div>
