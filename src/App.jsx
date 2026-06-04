@@ -198,19 +198,21 @@ const defaultData = {
   scores: [{id:1001,player:"Rob",course:"Millenium",holes:18,score:9,date:"11/11/2025"},{id:1002,player:"Rob",course:"Royal Ostend",holes:18,score:6,date:"12/10/2025"},{id:1003,player:"Rob",course:"Damme",holes:18,score:10,date:"11/10/2025"},{id:1004,player:"Rob",course:"Rigenee",holes:18,score:9,date:"10/10/2025"},{id:1005,player:"Rob",course:"Millenium",holes:18,score:11,date:"22/08/2025"},{id:1006,player:"Rob",course:"Millenium",holes:18,score:10,date:"15/07/2025"},{id:1007,player:"Rob",course:"Millenium",holes:18,score:7,date:"11/07/2025"},{id:1008,player:"Rob",course:"Millenium",holes:18,score:2,date:"29/06/2025"},{id:1009,player:"Rob",course:"Millenium",holes:18,score:7,date:"27/06/2025"},{id:1010,player:"Rob",course:"Millenium",holes:18,score:7,date:"09/06/2025"},{id:1011,player:"Rob",course:"Millenium",holes:18,score:5,date:"06/06/2025"},{id:1012,player:"Rob",course:"Millenium",holes:18,score:10,date:"25/05/2025"},{id:1013,player:"Rob",course:"Millenium",holes:18,score:8,date:"15/05/2025"},{id:1014,player:"Rob",course:"Millenium",holes:18,score:9,date:"11/05/2025"},{id:1015,player:"Rob",course:"Millenium",holes:18,score:15,date:"08/05/2025"},{id:1016,player:"Rob",course:"Millenium",holes:18,score:7,date:"26/04/2025"},{id:1017,player:"Rob",course:"Millenium",holes:18,score:6,date:"23/03/2025"},{id:1018,player:"Rob",course:"Millenium",holes:18,score:6,date:"20/03/2025"},{id:1019,player:"Rob",course:"Millenium",holes:9,score:6,date:"01/03/2025"}],
   records: {
     courses: [
-      { course:"Millenium 18", sub:null,  Rob:"+2",  Joost:"+1", Thomas:"+4", Joris:"+8" },
-      { course:"Millenium 18", sub:"Front",Rob:"-1",  Joost:"E",  Thomas:"E",  Joris:"+2" },
-      { course:"Millenium 18", sub:"Back", Rob:"-2",  Joost:"-1", Thomas:"-1", Joris:""   },
-      { course:"Haverleij 18", sub:null,   Rob:"+6",  Joost:"+4", Thomas:"+8", Joris:"+8" },
-      { course:"Haverleij 18", sub:"Front",Rob:"+3",  Joost:"+1", Thomas:"+4", Joris:""   },
-      { course:"Haverleij 18", sub:"Back", Rob:"+3",  Joost:"",   Thomas:"+1", Joris:""   },
-      { course:"Gendersteyn G/R",sub:null, Rob:"+2",  Joost:"+9", Thomas:"",   Joris:"+9" },
-      { course:"Ternesse 18",     sub:null,  Rob:"+9",  Joost:"",   Thomas:"",   Joris:""   },
-      { course:"Ternesse 18",     sub:"Front",Rob:"",   Joost:"",   Thomas:"",   Joris:""   },
-      { course:"Ternesse 18",     sub:"Back", Rob:"",   Joost:"",   Thomas:"",   Joris:""   },
-      { course:"Rigenee 18",      sub:null,   Rob:"",   Joost:"",   Thomas:"",   Joris:""   },
-      { course:"Rigenee 18",      sub:"Front",Rob:"",   Joost:"",   Thomas:"",   Joris:""   },
-      { course:"Rigenee 18",      sub:"Back", Rob:"",   Joost:"",   Thomas:"",   Joris:""   },
+      { course:"Millenium", sub:null,  Rob:"+2",  Joost:"+1", Thomas:"+4", Joris:"+8" },
+      { course:"Millenium", sub:"Front",Rob:"-1",  Joost:"E",  Thomas:"E",  Joris:"+2" },
+      { course:"Millenium", sub:"Back", Rob:"-2",  Joost:"-1", Thomas:"-1", Joris:""   },
+      { course:"Haverleij", sub:null,   Rob:"+6",  Joost:"+4", Thomas:"+8", Joris:"+8" },
+      { course:"Haverleij", sub:"Front",Rob:"+3",  Joost:"+1", Thomas:"+4", Joris:""   },
+      { course:"Haverleij", sub:"Back", Rob:"+3",  Joost:"",   Thomas:"+1", Joris:""   },
+      { course:"Gendersteyn",sub:null, Rob:"+2",  Joost:"+9", Thomas:"",   Joris:"+9" },
+      { course:"Gendersteyn",sub:"Geel",Rob:"",   Joost:"",   Thomas:"",   Joris:""   },
+      { course:"Gendersteyn",sub:"Rood",Rob:"",   Joost:"",   Thomas:"",   Joris:""   },
+      { course:"Ternesse",     sub:null,  Rob:"+9",  Joost:"",   Thomas:"",   Joris:""   },
+      { course:"Ternesse",     sub:"Front",Rob:"",   Joost:"",   Thomas:"",   Joris:""   },
+      { course:"Ternesse",     sub:"Back", Rob:"",   Joost:"",   Thomas:"",   Joris:""   },
+      { course:"Rigenee",      sub:null,   Rob:"",   Joost:"",   Thomas:"",   Joris:""   },
+      { course:"Rigenee",      sub:"Front",Rob:"",   Joost:"",   Thomas:"",   Joris:""   },
+      { course:"Rigenee",      sub:"Back", Rob:"",   Joost:"",   Thomas:"",   Joris:""   },
     ],
     stats: [
       { label:"70's streak",      Rob:"4",  Joost:"1", Thomas:"2",  Joris:"0"  },
@@ -1171,8 +1173,8 @@ function RecordsTab({data,save}){
   };
 
   // Course order
-  const COURSE_ORDER=["Millenium 18","Rigenee 18","Ternesse 18","Haverleij 18","Gendersteyn G/R"];
-  const AUTO_EXPAND=["Millenium 18"]; // always show front/back
+  const COURSE_ORDER=["Millenium","Rigenee","Ternesse","Haverleij","Gendersteyn"];
+  const AUTO_EXPAND=["Millenium"]; // always show front/back
 
   // Group courses
   const courses=(editMode?localRec:rec).courses;
