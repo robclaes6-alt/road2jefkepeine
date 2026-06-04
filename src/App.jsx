@@ -316,16 +316,18 @@ export default function GolfApp() {
     {id:"handicap",  label:"Handicap",   icon:"🎯"},
   ];
 
+  // These hooks MUST be before any conditional return (Rules of Hooks)
+  const [voteModal,setVoteModal] = useState(null);
+  const [voteName,setVoteName] = useState("");
+  const dataRef = useRef(data);
+  useEffect(()=>{ dataRef.current=data; },[data]);
+
   if(loading) return (
     <div style={{minHeight:"100vh",background:"#0a0e1a",display:"flex",alignItems:"center",justifyContent:"center",flexDirection:"column",gap:16}}>
       <div style={{fontSize:32}}>⛳</div>
       <div style={{fontFamily:"'DM Sans',sans-serif",color:"#4ade80",fontSize:14,letterSpacing:2}}>LADEN...</div>
     </div>
   );
-
-  // Use a ref so update helpers always see latest data
-  const dataRef = useRef(data);
-  useEffect(()=>{ dataRef.current=data; },[data]);
 
   const updateR2BDate=(item,newDate)=>{
     const d=dataRef.current;
