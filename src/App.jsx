@@ -1527,7 +1527,7 @@ function ScoresTab({data,save}){
     if(!form.score||!form.date) return;
     const courseVal = form.course==="Andere"?(form.customCourse||"?"):form.course;
     save({...data,scores:[...scores,{...form,course:courseVal,id:Date.now(),score:Number(form.score)}]});
-    setForm(f=>({...f,score:"",date:"",customCourse:""}));
+    setForm(f=>({...f,score:"",customCourse:""}));
     setShowForm(false);
   };
 
