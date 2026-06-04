@@ -352,7 +352,6 @@ export default function GolfApp() {
         </div>
         <div style={{display:"flex",gap:8,alignItems:"center"}}>
           {toast && <div style={{background:"#1e3a1e",color:"#4ade80",padding:"7px 13px",borderRadius:8,fontFamily:"'DM Sans',sans-serif",fontSize:13,border:"1px solid #2a4a2a"}}>{toast}</div>}
-          <AIChatButton data={data}/>
           <NotesButton data={data} save={save}/>
         </div>
       </div>
@@ -1122,6 +1121,8 @@ function ChallengesTab({data,save}){
   const [showForm,setShowForm] = useState(false);
   const [form,setForm] = useState({title:"",desc:"",addedBy:""});
   const [editId,setEditId] = useState(null);
+  const [voteModal,setVoteModal] = useState(null);
+  const [voteName,setVoteName] = useState("");
 
   const addOrEdit = () => {
     if(!form.title.trim()) return;
@@ -1129,7 +1130,7 @@ function ChallengesTab({data,save}){
       save({...data,challenges:challenges.map(c=>c.id===editId?{...c,title:form.title,desc:form.desc,addedBy:form.addedBy}:c)});
       setEditId(null);
     } else {
-      save({...data,challenges:[...challenges,{id:Date.now(),title:form.title,desc:form.desc,addedBy:form.addedBy,done:{}}]});
+      save({...data,challenges:[...challenges,{id:Date.now(),title:form.title,desc:form.desc,addedBy:form.addedBy,done:{},upvotes:[],downvotes:[]}]});
     }
     setForm({title:"",desc:"",addedBy:""});
     setShowForm(false);
@@ -1137,10 +1138,10 @@ function ChallengesTab({data,save}){
 
   const toggleDone = (id,player) => {
     const today=new Date();
-    const dd=String(today.getDate()).padStart(2,'0');
-    const mm=String(today.getMonth()+1).padStart(2,'0');
+    const dd=String(today.getDate()).padStart(2,"0");
+    const mm=String(today.getMonth()+1).padStart(2,"0");
     const yyyy=today.getFullYear();
-    const dateStr=`${dd}/${mm}/${yyyy}`;
+    const dateStr=dd+"/"+mm+"/"+yyyy;
     save({...data,challenges:challenges.map(c=>{
       if(c.id!==id) return c;
       const isDone=c.done[player];
@@ -1151,33 +1152,78 @@ function ChallengesTab({data,save}){
     })});
   };
 
+  const submitVote = () => {
+    if(!voteName.trim()||!voteModal) return;
+    const {id,type} = voteModal;
+    save({...data,challenges:challenges.map(c=>{
+      if(c.id!==id) return c;
+      const upvotes=[...(c.upvotes||[])];
+      const downvotes=[...(c.downvotes||[])];
+      const newUp=upvotes.filter(v=>v!==voteName.trim());
+      const newDown=downvotes.filter(v=>v!==voteName.trim());
+      if(type==="up") newUp.push(voteName.trim());
+      else newDown.push(voteName.trim());
+      return {...c, upvotes:newUp, downvotes:newDown};
+    })});
+    setVoteModal(null);
+    setVoteName("");
+  };
+
   const removeChallenge = (id) => save({...data,challenges:challenges.filter(c=>c.id!==id)});
+  const startEdit = (c) => { setForm({title:c.title,desc:c.desc,addedBy:c.addedBy||""}); setEditId(c.id); setShowForm(true); };
 
-  const startEdit = (c) => { setForm({title:c.title,desc:c.desc,addedBy:c.addedBy||''}); setEditId(c.id); setShowForm(true); };
-
-  // Rankings: count completions per player
-  const totals = Object.fromEntries(PLAYERS.map(p=>[p,challenges.filter(c=>c.done[p]).length]));
+  const validChallenges = challenges.filter(c=>(c.downvotes||[]).length < 3);
+  const totals = Object.fromEntries(PLAYERS.map(p=>[p,validChallenges.filter(c=>c.done[p]).length]));
   const ranked = [...PLAYERS].sort((a,b)=>totals[b]-totals[a]);
-  const total = challenges.length;
-  const me = ["🥇","🥈","🥉","4️⃣"];
+  const total = validChallenges.length;
+
+  const tiedLabel = (arr, getVal) => {
+    return arr.map(item=>{
+      const val=getVal(item);
+      const rank=arr.filter(x=>getVal(x)>val).length+1;
+      const tied=arr.filter(x=>getVal(x)===val).length>1;
+      const medals=["🥇","🥈","🥉","4️⃣"];
+      return {item,rank,tied,label:tied?"T"+rank:(medals[rank-1]||rank)};
+    });
+  };
 
   return(
     <div style={{display:"flex",flexDirection:"column",gap:14}}>
-      {/* Leaderboard */}
+      {voteModal&&(
+        <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.75)",zIndex:300,display:"flex",alignItems:"center",justifyContent:"center",padding:20}}>
+          <div className="card" style={{maxWidth:320,width:"100%",borderColor:voteModal.type==="up"?"#4ade80":"#f87171"}}>
+            <div style={{fontWeight:700,fontSize:15,marginBottom:6}}>{voteModal.type==="up"?"👍 Upvote":"👎 Downvote"}</div>
+            <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:13,color:"#8a9a88",marginBottom:12}}>
+              {voteModal.type==="down"?"Na 3 downvotes wordt de challenge doorgestreept.":"Wie stemt voor deze challenge?"}
+            </div>
+            <select className="input" value={voteName} onChange={e=>setVoteName(e.target.value)} style={{marginBottom:12}}>
+              <option value="">— kies speler —</option>
+              {PLAYERS.map(p=><option key={p} value={p}>{p}</option>)}
+            </select>
+            <div style={{display:"flex",gap:8}}>
+              <button onClick={()=>{setVoteModal(null);setVoteName("");}} style={{flex:1,padding:"10px",borderRadius:8,border:"1px solid #2a3a2a",background:"#131a14",color:"#6b7563",fontFamily:"'DM Sans',sans-serif",cursor:"pointer"}}>Annuleer</button>
+              <button onClick={submitVote} disabled={!voteName.trim()} style={{flex:1,padding:"10px",borderRadius:8,border:"none",background:voteName.trim()?(voteModal.type==="up"?"#4ade80":"#f87171"):"#2a2a2a",color:voteName.trim()?"#0a0a0a":"#6b7563",fontFamily:"'DM Sans',sans-serif",fontWeight:700,cursor:voteName.trim()?"pointer":"default"}}>
+                Stem {voteModal.type==="up"?"👍":"👎"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {total>0&&(
         <div className="card">
           <div style={{fontSize:12,color:"#f472b6",fontFamily:"'DM Sans',sans-serif",letterSpacing:2,textTransform:"uppercase",marginBottom:12}}>🏆 Standings</div>
           <table><thead><tr><th>Speler</th><th>Voltooid</th><th>Voortgang</th></tr></thead>
-          <tbody>{ranked.map((p,i)=>{
+          <tbody>{tiedLabel(ranked,p=>totals[p]).map(({item:p,label})=>{
             const pct=total>0?Math.round(totals[p]/total*100):0;
             const allDone=totals[p]===total&&total>0;
             return(
               <tr key={p}>
-                <td style={{fontWeight:700,color:PC[p]}}>{me[i]} {p} {allDone&&"🎉"}</td>
-                <td style={{fontWeight:700,fontSize:17,color:allDone?"#e8a838":PC[p]}}>{totals[p]}/{total}</td>
+                <td style={{fontWeight:700,color:PC[p]}}>{label} {p} {allDone&&"🎉"}</td>
+                <td style={{fontWeight:700,fontSize:17,color:PC[p]}}>{totals[p]}/{total}</td>
                 <td style={{width:160}}>
                   <div style={{background:"#131a14",borderRadius:4,height:8,overflow:"hidden"}}>
-                    <div style={{width:`${pct}%`,height:"100%",background:PC[p],borderRadius:4,transition:"width 0.3s"}}/>
+                    <div style={{width:pct+"%",height:"100%",background:PC[p],borderRadius:4,transition:"width 0.3s"}}/>
                   </div>
                   <span style={{fontFamily:"'DM Sans',sans-serif",fontSize:11,color:"#6b7563"}}>{pct}%</span>
                 </td>
@@ -1187,9 +1233,8 @@ function ChallengesTab({data,save}){
         </div>
       )}
 
-      {/* Add / Edit form */}
       <div style={{display:"flex",justifyContent:"flex-end"}}>
-        <button onClick={()=>{setShowForm(v=>!v);setEditId(null);setForm({title:"",desc:"",addedBy:""}); }} style={{background:"#f472b6",color:"#0a0510",padding:"11px 18px",borderRadius:10,fontFamily:"'DM Sans',sans-serif",fontWeight:700,fontSize:14,border:"none",cursor:"pointer"}}>
+        <button onClick={()=>{setShowForm(v=>!v);setEditId(null);setForm({title:"",desc:"",addedBy:""});}} style={{background:"#f472b6",color:"#0a0510",padding:"11px 18px",borderRadius:10,fontFamily:"'DM Sans',sans-serif",fontWeight:700,fontSize:14,border:"none",cursor:"pointer"}}>
           {showForm&&editId===null?"✕ Annuleer":"+ Nieuwe Challenge"}
         </button>
       </div>
@@ -1222,23 +1267,24 @@ function ChallengesTab({data,save}){
         </div>
       )}
 
-      {/* Challenge cards */}
       {challenges.length===0&&(
-        <div className="card" style={{textAlign:"center",color:"#4b5563",fontFamily:"'DM Sans',sans-serif",padding:32}}>
-          Nog geen challenges. Voeg de eerste toe! 🎯
-        </div>
+        <div className="card" style={{textAlign:"center",color:"#4b5563",fontFamily:"'DM Sans',sans-serif",padding:32}}>Nog geen challenges. Voeg de eerste toe! 🎯</div>
       )}
       {challenges.map(c=>{
+        const upvotes=c.upvotes||[];
+        const downvotes=c.downvotes||[];
+        const vetoed=downvotes.length>=3;
         const doneCount=PLAYERS.filter(p=>c.done[p]).length;
-        const allDone=doneCount===PLAYERS.length;
+        const allDone=doneCount===PLAYERS.length&&!vetoed;
         return(
-          <div key={c.id} className="card" style={{borderColor:allDone?"#e8a838":"#1e2a1e"}}>
+          <div key={c.id} className="card" style={{borderColor:vetoed?"#3a1a1a":allDone?"#e8a838":"#1e2a1e",opacity:vetoed?0.65:1}}>
             <div style={{display:"flex",alignItems:"flex-start",gap:10,marginBottom:10}}>
               <div style={{flex:1}}>
-                <div style={{fontWeight:700,fontSize:15,marginBottom:c.desc?4:0,display:"flex",alignItems:"center",gap:8,flexWrap:"wrap"}}>
+                <div style={{fontWeight:700,fontSize:15,marginBottom:c.desc?4:0,display:"flex",alignItems:"center",gap:8,flexWrap:"wrap",textDecoration:vetoed?"line-through":"none",color:vetoed?"#4b5563":"inherit"}}>
                   {allDone&&<span style={{color:"#e8a838"}}>🏆</span>}
+                  {vetoed&&<span style={{fontSize:11,color:"#f87171"}}>❌ Gevetood</span>}
                   {c.title}
-                  {c.addedBy&&<span style={{fontSize:11,fontFamily:"'DM Sans',sans-serif",fontWeight:400,color:PC[c.addedBy]||"#6b7563",background:`${PC[c.addedBy]||"#6b7563"}18`,padding:"2px 7px",borderRadius:4}}>door {c.addedBy}</span>}
+                  {c.addedBy&&<span style={{fontSize:11,fontFamily:"'DM Sans',sans-serif",fontWeight:400,color:PC[c.addedBy]||"#6b7563",background:(PC[c.addedBy]||"#6b7563")+"18",padding:"2px 7px",borderRadius:4}}>door {c.addedBy}</span>}
                 </div>
                 {c.desc&&<div style={{fontFamily:"'DM Sans',sans-serif",fontSize:13,color:"#8a9a88",lineHeight:1.5}}>{c.desc}</div>}
               </div>
@@ -1247,20 +1293,39 @@ function ChallengesTab({data,save}){
                 <button onClick={()=>removeChallenge(c.id)} style={{background:"none",border:"none",color:"#4b5563",cursor:"pointer",fontSize:17,padding:"2px 6px",lineHeight:1}}>×</button>
               </div>
             </div>
-            <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
-              {PLAYERS.map(p=>{
-                const done=c.done[p];
-                return(
-                  <button key={p} onClick={()=>toggleDone(c.id,p)}
-                    style={{display:"flex",alignItems:"center",gap:6,padding:"7px 12px",borderRadius:8,border:`2px solid ${done?PC[p]:"#2a3a2a"}`,background:done?`${PC[p]}22`:"transparent",cursor:"pointer",fontFamily:"'DM Sans',sans-serif",fontSize:13,fontWeight:done?700:400,color:done?PC[p]:"#6b7563",transition:"all 0.15s"}}>
-                    <span style={{width:14,height:14,borderRadius:"50%",border:`2px solid ${done?PC[p]:"#4b5563"}`,background:done?PC[p]:"transparent",display:"inline-flex",alignItems:"center",justifyContent:"center",fontSize:9,color:"#0a0e1a",flexShrink:0}}>{done?"✓":""}</span>
-                    {p}
-                  </button>
-                );
-              })}
+            <div style={{display:"flex",gap:8,marginBottom:10,alignItems:"center",flexWrap:"wrap"}}>
+              <button onClick={()=>{setVoteModal({id:c.id,type:"up"});setVoteName("");}}
+                style={{display:"flex",alignItems:"center",gap:5,padding:"5px 11px",borderRadius:7,border:"1px solid "+(upvotes.length?"#2a4a2a":"#2a3a2a"),background:upvotes.length?"#1e3a1e":"transparent",cursor:"pointer",fontFamily:"'DM Sans',sans-serif",fontSize:12,color:upvotes.length?"#4ade80":"#6b7563"}}>
+                👍 {upvotes.length}
+              </button>
+              <button onClick={()=>{setVoteModal({id:c.id,type:"down"});setVoteName("");}}
+                style={{display:"flex",alignItems:"center",gap:5,padding:"5px 11px",borderRadius:7,border:"1px solid "+(downvotes.length>=3?"#4a1a1a":downvotes.length?"#3a2a2a":"#2a3a2a"),background:downvotes.length>=3?"#2a1010":downvotes.length?"#1e1414":"transparent",cursor:"pointer",fontFamily:"'DM Sans',sans-serif",fontSize:12,color:downvotes.length>=3?"#f87171":downvotes.length?"#e87171":"#6b7563"}}>
+                👎 {downvotes.length}{downvotes.length>=3?" (gevetood)":""}
+              </button>
+              {(upvotes.length>0||downvotes.length>0)&&(
+                <span style={{fontFamily:"'DM Sans',sans-serif",fontSize:11,color:"#4b5563",flex:1,minWidth:0}}>
+                  {upvotes.length>0&&"👍 "+upvotes.join(", ")}
+                  {upvotes.length>0&&downvotes.length>0&&" · "}
+                  {downvotes.length>0&&"👎 "+downvotes.join(", ")}
+                </span>
+              )}
             </div>
+            {!vetoed&&(
+              <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+                {PLAYERS.map(p=>{
+                  const done=c.done[p];
+                  return(
+                    <button key={p} onClick={()=>toggleDone(c.id,p)}
+                      style={{display:"flex",alignItems:"center",gap:6,padding:"7px 12px",borderRadius:8,border:"2px solid "+(done?PC[p]:"#2a3a2a"),background:done?PC[p]+"22":"transparent",cursor:"pointer",fontFamily:"'DM Sans',sans-serif",fontSize:13,fontWeight:done?700:400,color:done?PC[p]:"#6b7563",transition:"all 0.15s"}}>
+                      <span style={{width:14,height:14,borderRadius:"50%",border:"2px solid "+(done?PC[p]:"#4b5563"),background:done?PC[p]:"transparent",display:"inline-flex",alignItems:"center",justifyContent:"center",fontSize:9,color:"#0a0e1a",flexShrink:0}}>{done?"✓":""}</span>
+                      {p}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
             <div style={{marginTop:8,display:"flex",justifyContent:"space-between",alignItems:"center",fontFamily:"'DM Sans',sans-serif",fontSize:11}}>
-              <span style={{color:"#4b5563"}}>{doneCount}/{PLAYERS.length} voltooid</span>
+              <span style={{color:"#4b5563"}}>{vetoed?"Niet geldig (gevetood)":doneCount+"/"+PLAYERS.length+" voltooid"}</span>
               {c.addedBy&&<span style={{color:PC[c.addedBy]||"#6b7563"}}>🏌️ {c.addedBy}</span>}
             </div>
           </div>
@@ -1945,118 +2010,5 @@ function HandicapTab({data}){
         );
       })}
     </div>
-  );
-}
-
-// ─── AI Chat Button ───────────────────────────────────────────────────────────
-function AIChatButton({data}){
-  const [open,setOpen] = useState(false);
-  const [messages,setMessages] = useState([]);
-  const [input,setInput] = useState("");
-  const [loading,setLoading] = useState(false);
-  const bottomRef = useRef(null);
-
-  useEffect(()=>{ if(bottomRef.current) bottomRef.current.scrollIntoView({behavior:"smooth"}); },[messages]);
-
-  const systemPrompt = `Je bent een golf-assistent voor de app "Road 2 Jefke Peine". Je hebt toegang tot alle golfdata van 4 vrienden: Rob, Joost, Thomas en Joris. Beantwoord vragen over hun scores, statistieken, R2B birdies, Zero Sum wedstrijden, challenges en tornooien. Wees beknopt en vriendelijk. Gebruik de data om precieze antwoorden te geven.
-
-Hier is de volledige app data in JSON:
-${JSON.stringify(data, null, 0)}`;
-
-  const send = async () => {
-    if(!input.trim()||loading) return;
-    const userMsg = {role:"user",content:input.trim()};
-    const newMsgs = [...messages, userMsg];
-    setMessages(newMsgs);
-    setInput("");
-    setLoading(true);
-    try{
-      const res = await fetch("https://api.anthropic.com/v1/messages",{
-        method:"POST",
-        headers:{"Content-Type":"application/json"},
-        body:JSON.stringify({
-          model:"claude-sonnet-4-20250514",
-          max_tokens:1000,
-          system:systemPrompt,
-          messages:newMsgs.map(m=>({role:m.role,content:m.content})),
-        })
-      });
-      const d = await res.json();
-      const reply = d.content?.[0]?.text || "Geen antwoord ontvangen.";
-      setMessages(m=>[...m,{role:"assistant",content:reply}]);
-    } catch(e){
-      setMessages(m=>[...m,{role:"assistant",content:"❌ Er ging iets mis. Probeer opnieuw."}]);
-    }
-    setLoading(false);
-  };
-
-  return(
-    <>
-      <button onClick={()=>setOpen(v=>!v)} style={{background:"#131a14",border:"1px solid #2a3a2a",borderRadius:8,color:"#4ade80",width:34,height:34,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",fontSize:16,flexShrink:0}}>
-        🤖
-      </button>
-      {open&&(
-        <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.75)",zIndex:400,display:"flex",alignItems:"flex-end",justifyContent:"center",padding:"0 0 0 0"}}>
-          <div style={{width:"min(520px,100%)",height:"75vh",display:"flex",flexDirection:"column",background:"#0d1218",borderTop:"1px solid #1e2a1e",borderLeft:"1px solid #1e2a1e",borderRight:"1px solid #1e2a1e",borderRadius:"16px 16px 0 0"}}>
-            {/* Header */}
-            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"14px 16px",borderBottom:"1px solid #1e2a1e",flexShrink:0}}>
-              <div>
-                <div style={{fontWeight:700,fontSize:15}}>🤖 Golf AI</div>
-                <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:11,color:"#4ade80",marginTop:2}}>Stel een vraag over jullie golfdata</div>
-              </div>
-              <button onClick={()=>setOpen(false)} style={{background:"none",border:"none",color:"#6b7563",cursor:"pointer",fontSize:22,lineHeight:1}}>×</button>
-            </div>
-            {/* Messages */}
-            <div style={{flex:1,overflowY:"auto",padding:"14px 16px",display:"flex",flexDirection:"column",gap:10}}>
-              {messages.length===0&&(
-                <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:13,color:"#4b5563",textAlign:"center",marginTop:20,lineHeight:1.7}}>
-                  Voorbeeldvragen:<br/>
-                  "Hoeveel rondjes onder +8 heeft Rob gespeeld?"<br/>
-                  "Wie heeft de beste handicap?"<br/>
-                  "Wie leidt de Zero Sum?"<br/>
-                  "Welke challenges zijn nog niet voltooid?"
-                </div>
-              )}
-              {messages.map((m,i)=>(
-                <div key={i} style={{display:"flex",flexDirection:"column",alignItems:m.role==="user"?"flex-end":"flex-start"}}>
-                  <div style={{
-                    maxWidth:"85%",padding:"10px 13px",borderRadius:m.role==="user"?"12px 12px 2px 12px":"12px 12px 12px 2px",
-                    background:m.role==="user"?"#1e3a1e":"#131a14",
-                    border:`1px solid ${m.role==="user"?"#2a4a2a":"#1e2a1e"}`,
-                    fontFamily:"'DM Sans',sans-serif",fontSize:13,color:"#e8e4d8",lineHeight:1.6,whiteSpace:"pre-wrap"
-                  }}>
-                    {m.content}
-                  </div>
-                </div>
-              ))}
-              {loading&&(
-                <div style={{display:"flex",alignItems:"flex-start"}}>
-                  <div style={{padding:"10px 14px",borderRadius:"12px 12px 12px 2px",background:"#131a14",border:"1px solid #1e2a1e",fontFamily:"'DM Sans',sans-serif",fontSize:13,color:"#4ade80"}}>
-                    ⛳ Bezig met analyseren...
-                  </div>
-                </div>
-              )}
-              <div ref={bottomRef}/>
-            </div>
-            {/* Input */}
-            <div style={{padding:"12px 16px",borderTop:"1px solid #1e2a1e",display:"flex",gap:8,flexShrink:0}}>
-              <input
-                className="input"
-                value={input}
-                onChange={e=>setInput(e.target.value)}
-                onKeyDown={e=>e.key==="Enter"&&!e.shiftKey&&send()}
-                placeholder="Stel een vraag..."
-                style={{flex:1}}
-                disabled={loading}
-              />
-              <button onClick={send} disabled={!input.trim()||loading}
-                style={{background:input.trim()&&!loading?"#4ade80":"#1e3a1e",color:input.trim()&&!loading?"#00040a":"#4b5563",border:"none",borderRadius:8,padding:"0 16px",fontFamily:"'DM Sans',sans-serif",fontWeight:700,cursor:input.trim()&&!loading?"pointer":"default",flexShrink:0,fontSize:18}}>
-                ↑
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-    </>
   );
 }
