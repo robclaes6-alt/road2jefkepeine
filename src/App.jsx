@@ -300,6 +300,7 @@ export default function GolfApp() {
     {id:"challenges",label:"Challenges", icon:"🎯"},
     {id:"tornooien", label:"Tornooien",  icon:"🏆"},
     {id:"records",   label:"Records",    icon:"📋"},
+    {id:"handicap",  label:"Handicap",   icon:"🎯"},
   ];
 
   if(loading) return (
@@ -351,6 +352,7 @@ export default function GolfApp() {
         </div>
         <div style={{display:"flex",gap:8,alignItems:"center"}}>
           {toast && <div style={{background:"#1e3a1e",color:"#4ade80",padding:"7px 13px",borderRadius:8,fontFamily:"'DM Sans',sans-serif",fontSize:13,border:"1px solid #2a4a2a"}}>{toast}</div>}
+          <AIChatButton data={data}/>
           <NotesButton data={data} save={save}/>
         </div>
       </div>
@@ -373,6 +375,7 @@ export default function GolfApp() {
         {tab==="scores"    && <ScoresTab data={data} save={save}/>}
         {tab==="tornooien" && <TornooienTab data={data} save={save}/>}
         {tab==="records"   && <RecordsTab data={data} save={save}/>}
+        {tab==="handicap"  && <HandicapTab data={data}/>}
       </div>
     </div>
   );
@@ -1867,6 +1870,190 @@ function NotesButton({data,save}){
                 </div>
               </div>
             ))}
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
+
+// ─── Handicap Tab ─────────────────────────────────────────────────────────────
+function HandicapTab({data}){
+  const scores = data.scores||[];
+  const parseDate = str=>{ if(!str)return 0; const p=str.split('/'); return p.length===3?new Date(+p[2],+p[1]-1,+p[0]).getTime():0; };
+
+  const calcHandicap = (player) => {
+    const rounds = scores
+      .filter(s=>s.player===player && s.holes===18)
+      .sort((a,b)=>parseDate(b.date)-parseDate(a.date))
+      .slice(0,20);
+    if(rounds.length<1) return null;
+    const sorted = [...rounds].sort((a,b)=>a.score-b.score);
+    const best8 = sorted.slice(0,Math.min(8,sorted.length));
+    const avg = Math.round(best8.reduce((a,b)=>a+b.score,0)/best8.length*10)/10;
+    return { handicap:avg, rounds:rounds.length, best8, usedRounds:best8.length };
+  };
+
+  const fmtScore = s => s===0?"E":s>0?"+"+s:s;
+
+  return(
+    <div style={{display:"flex",flexDirection:"column",gap:14}}>
+      <div className="card">
+        <div style={{fontSize:12,color:"#e8a838",fontFamily:"'DM Sans',sans-serif",letterSpacing:2,textTransform:"uppercase",marginBottom:12}}>🎯 Definitieve Handicap</div>
+        <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:12,color:"#6b7563",marginBottom:14,lineHeight:1.5}}>
+          Gemiddelde van de beste 8 dagresultaten uit de laatste 20 rondjes van 18 holes per speler.
+        </div>
+        <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(150px,1fr))",gap:10,marginBottom:6}}>
+          {PLAYERS.map(p=>{
+            const r=calcHandicap(p);
+            return(
+              <div key={p} style={{textAlign:"center",background:"#131a14",borderRadius:10,padding:"14px 8px",border:`1px solid ${PC[p]}33`}}>
+                <div style={{fontSize:11,color:"#6b7563",fontFamily:"'DM Sans',sans-serif",marginBottom:4}}>{p}</div>
+                <div style={{fontSize:28,fontWeight:900,color:r?PC[p]:"#2a3a2a"}}>{r?fmtScore(r.handicap):"—"}</div>
+                {r&&<div style={{fontSize:10,color:"#4b5563",fontFamily:"'DM Sans',sans-serif",marginTop:4}}>{r.usedRounds} van {r.rounds} rondjes</div>}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {PLAYERS.map(p=>{
+        const r=calcHandicap(p);
+        if(!r) return null;
+        const last20 = scores.filter(s=>s.player===p&&s.holes===18).sort((a,b)=>parseDate(b.date)-parseDate(a.date)).slice(0,20);
+        const best8ids = new Set(r.best8.map((_,i)=>i));
+        const best8scores = new Set(r.best8.map(s=>s.score+s.date));
+        return(
+          <div key={p} className="card">
+            <div style={{fontSize:12,color:PC[p],fontFamily:"'DM Sans',sans-serif",letterSpacing:2,textTransform:"uppercase",marginBottom:10}}>
+              {p} — laatste {last20.length} rondjes (18H)
+            </div>
+            <div style={{maxHeight:320,overflowY:"auto"}}>
+              {last20.map((s,i)=>{
+                const isBest=best8scores.has(s.score+s.date);
+                return(
+                  <div key={s.id||i} style={{display:"flex",alignItems:"center",gap:10,padding:"7px 0",borderBottom:"1px solid #131a14",fontFamily:"'DM Sans',sans-serif",fontSize:13}}>
+                    <span style={{width:24,height:24,borderRadius:"50%",background:isBest?"#e8a83822":"transparent",border:`1px solid ${isBest?"#e8a838":"#2a3a2a"}`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:10,color:isBest?"#e8a838":"#4b5563",flexShrink:0}}>{isBest?"★":i+1}</span>
+                    <span className="fade" style={{width:80,flexShrink:0,fontSize:12}}>{s.date}</span>
+                    <span style={{flex:1,color:"#8a9a88",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{s.course}</span>
+                    <span style={{fontWeight:700,color:isBest?PC[p]:"#6b7563",fontSize:15}}>{fmtScore(s.score)}</span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+// ─── AI Chat Button ───────────────────────────────────────────────────────────
+function AIChatButton({data}){
+  const [open,setOpen] = useState(false);
+  const [messages,setMessages] = useState([]);
+  const [input,setInput] = useState("");
+  const [loading,setLoading] = useState(false);
+  const bottomRef = useRef(null);
+
+  useEffect(()=>{ if(bottomRef.current) bottomRef.current.scrollIntoView({behavior:"smooth"}); },[messages]);
+
+  const systemPrompt = `Je bent een golf-assistent voor de app "Road 2 Jefke Peine". Je hebt toegang tot alle golfdata van 4 vrienden: Rob, Joost, Thomas en Joris. Beantwoord vragen over hun scores, statistieken, R2B birdies, Zero Sum wedstrijden, challenges en tornooien. Wees beknopt en vriendelijk. Gebruik de data om precieze antwoorden te geven.
+
+Hier is de volledige app data in JSON:
+${JSON.stringify(data, null, 0)}`;
+
+  const send = async () => {
+    if(!input.trim()||loading) return;
+    const userMsg = {role:"user",content:input.trim()};
+    const newMsgs = [...messages, userMsg];
+    setMessages(newMsgs);
+    setInput("");
+    setLoading(true);
+    try{
+      const res = await fetch("https://api.anthropic.com/v1/messages",{
+        method:"POST",
+        headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({
+          model:"claude-sonnet-4-20250514",
+          max_tokens:1000,
+          system:systemPrompt,
+          messages:newMsgs.map(m=>({role:m.role,content:m.content})),
+        })
+      });
+      const d = await res.json();
+      const reply = d.content?.[0]?.text || "Geen antwoord ontvangen.";
+      setMessages(m=>[...m,{role:"assistant",content:reply}]);
+    } catch(e){
+      setMessages(m=>[...m,{role:"assistant",content:"❌ Er ging iets mis. Probeer opnieuw."}]);
+    }
+    setLoading(false);
+  };
+
+  return(
+    <>
+      <button onClick={()=>setOpen(v=>!v)} style={{background:"#131a14",border:"1px solid #2a3a2a",borderRadius:8,color:"#4ade80",width:34,height:34,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",fontSize:16,flexShrink:0}}>
+        🤖
+      </button>
+      {open&&(
+        <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.75)",zIndex:400,display:"flex",alignItems:"flex-end",justifyContent:"center",padding:"0 0 0 0"}}>
+          <div style={{width:"min(520px,100%)",height:"75vh",display:"flex",flexDirection:"column",background:"#0d1218",borderTop:"1px solid #1e2a1e",borderLeft:"1px solid #1e2a1e",borderRight:"1px solid #1e2a1e",borderRadius:"16px 16px 0 0"}}>
+            {/* Header */}
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"14px 16px",borderBottom:"1px solid #1e2a1e",flexShrink:0}}>
+              <div>
+                <div style={{fontWeight:700,fontSize:15}}>🤖 Golf AI</div>
+                <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:11,color:"#4ade80",marginTop:2}}>Stel een vraag over jullie golfdata</div>
+              </div>
+              <button onClick={()=>setOpen(false)} style={{background:"none",border:"none",color:"#6b7563",cursor:"pointer",fontSize:22,lineHeight:1}}>×</button>
+            </div>
+            {/* Messages */}
+            <div style={{flex:1,overflowY:"auto",padding:"14px 16px",display:"flex",flexDirection:"column",gap:10}}>
+              {messages.length===0&&(
+                <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:13,color:"#4b5563",textAlign:"center",marginTop:20,lineHeight:1.7}}>
+                  Voorbeeldvragen:<br/>
+                  "Hoeveel rondjes onder +8 heeft Rob gespeeld?"<br/>
+                  "Wie heeft de beste handicap?"<br/>
+                  "Wie leidt de Zero Sum?"<br/>
+                  "Welke challenges zijn nog niet voltooid?"
+                </div>
+              )}
+              {messages.map((m,i)=>(
+                <div key={i} style={{display:"flex",flexDirection:"column",alignItems:m.role==="user"?"flex-end":"flex-start"}}>
+                  <div style={{
+                    maxWidth:"85%",padding:"10px 13px",borderRadius:m.role==="user"?"12px 12px 2px 12px":"12px 12px 12px 2px",
+                    background:m.role==="user"?"#1e3a1e":"#131a14",
+                    border:`1px solid ${m.role==="user"?"#2a4a2a":"#1e2a1e"}`,
+                    fontFamily:"'DM Sans',sans-serif",fontSize:13,color:"#e8e4d8",lineHeight:1.6,whiteSpace:"pre-wrap"
+                  }}>
+                    {m.content}
+                  </div>
+                </div>
+              ))}
+              {loading&&(
+                <div style={{display:"flex",alignItems:"flex-start"}}>
+                  <div style={{padding:"10px 14px",borderRadius:"12px 12px 12px 2px",background:"#131a14",border:"1px solid #1e2a1e",fontFamily:"'DM Sans',sans-serif",fontSize:13,color:"#4ade80"}}>
+                    ⛳ Bezig met analyseren...
+                  </div>
+                </div>
+              )}
+              <div ref={bottomRef}/>
+            </div>
+            {/* Input */}
+            <div style={{padding:"12px 16px",borderTop:"1px solid #1e2a1e",display:"flex",gap:8,flexShrink:0}}>
+              <input
+                className="input"
+                value={input}
+                onChange={e=>setInput(e.target.value)}
+                onKeyDown={e=>e.key==="Enter"&&!e.shiftKey&&send()}
+                placeholder="Stel een vraag..."
+                style={{flex:1}}
+                disabled={loading}
+              />
+              <button onClick={send} disabled={!input.trim()||loading}
+                style={{background:input.trim()&&!loading?"#4ade80":"#1e3a1e",color:input.trim()&&!loading?"#00040a":"#4b5563",border:"none",borderRadius:8,padding:"0 16px",fontFamily:"'DM Sans',sans-serif",fontWeight:700,cursor:input.trim()&&!loading?"pointer":"default",flexShrink:0,fontSize:18}}>
+                ↑
+              </button>
+            </div>
           </div>
         </div>
       )}
