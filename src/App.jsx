@@ -230,7 +230,7 @@ function getTiedRank(items, getVal){
     const val=getVal(item);
     const rank=items.filter(x=>getVal(x)>val).length;
     const tied=items.filter(x=>getVal(x)===val).length>1;
-    return {item, medal: tied?"T"+(rank+1):(medals[rank]||String(rank+1))};
+    return {item, medal: tied?"T"+(medals[rank]||String(rank+1)):(medals[rank]||String(rank+1))};
   });
 }
 
