@@ -366,7 +366,7 @@ export default function GolfApp() {
       </div>
 
       <div style={{padding:"16px",maxWidth:960,margin:"0 auto"}} className="anim" key={tab}>
-        {tab==="dashboard" && <Dashboard data={data}/>}
+        {tab==="dashboard" && <Dashboard data={data} save={save}/>}
         {tab==="zerogame"  && <ZeroSumGame data={data} save={save}/>}
         {tab==="r2b"       && <R2BTab data={data} save={save}/>}
 
@@ -381,7 +381,7 @@ export default function GolfApp() {
 }
 
 // ─── Dashboard ────────────────────────────────────────────────────────────────
-function Dashboard({data}){
+function Dashboard({data,save}){
   const mStats=calcAllTimeTourney(data.masters,false);
   const uStats=calcAllTimeTourney(data.usOpen,true);
   const allTime=PLAYERS.map(p=>({player:p,pts:(mStats[p]?.pts||0)+(uStats[p]?.pts||0),mPts:mStats[p]?.pts||0,uPts:uStats[p]?.pts||0})).sort((a,b)=>b.pts-a.pts);
@@ -392,6 +392,8 @@ function Dashboard({data}){
   const zsStandings=calcZeroSum(data.zeroSum||[]);
   const threeMonthsAgo=new Date();threeMonthsAgo.setMonth(threeMonthsAgo.getMonth()-3);
   const [showAllFeed,setShowAllFeed]=useState(false);
+  const [showExpanded,setShowExpanded]=useState(false);
+  const [editDateItem,setEditDateItem]=useState(null); // {type, id, player, hole, currentDate}
 
   const me=["🥇","🥈","🥉","4️⃣"];
 
@@ -409,16 +411,55 @@ function Dashboard({data}){
     ...(data.zeroSum||[]).filter(m=>parseDate(m.date)).map(m=>({date:m.date,label:`${m.p1} vs ${m.p2}${m.margin?" ("+m.margin+")":""}`,winner:m.winner,type:"Zero Sum",sortDate:parseDate(m.date)})),
     ...(data.scores||[]).filter(s=>parseDate(s.date)).map(s=>({date:s.date,label:`${s.player} — ${s.course} (${s.holes}H)`,score:s.score,player:s.player,type:"Score",sortDate:parseDate(s.date)})),
     ...(data.r2bLog||[]).filter(e=>parseDate(e.date)).map(e=>e.type==="b2b"
-      ? {date:e.date,label:`B2B ${e.player} — back 2 back`,type:"R2B",player:e.player,sortDate:parseDate(e.date)}
-      : {date:e.date,label:`R2B ${e.player} — birdie hole ${e.hole}`,type:"R2B",player:e.player,sortDate:parseDate(e.date)}),
-    ...(data.challenges||[]).flatMap(c=>PLAYERS.filter(p=>c.done[p]).map(p=>({date:c.doneDates?.[p]||null,label:`Challenge: ${p} — ${c.title}`,type:"Challenge",player:p,sortDate:c.doneDates?.[p]?parseDate(c.doneDates[p]):new Date(0)}))),
+      ? {date:e.date,label:`B2B ${e.player} — back 2 back`,type:"R2B",player:e.player,isBb:true,sortDate:parseDate(e.date)}
+      : {date:e.date,label:`R2B ${e.player} — birdie hole ${e.hole}`,type:"R2B",player:e.player,hole:e.hole,isBb:false,sortDate:parseDate(e.date)}),
+    ...(data.challenges||[]).flatMap(c=>PLAYERS.filter(p=>c.done[p]).map(p=>({date:c.doneDates?.[p]||null,label:`Challenge: ${p} — ${c.title}`,type:"Challenge",player:p,challengeTitle:c.title,sortDate:c.doneDates?.[p]?parseDate(c.doneDates[p]):new Date(0)}))),
   ].sort((a,b)=>b.sortDate-a.sortDate);
 
   const recent=allEvents.filter(e=>e.sortDate>=threeMonthsAgo).slice(0,18);
   const feedItems=showAllFeed?allEvents:recent;
+  const visibleItems=showExpanded||showAllFeed?feedItems:feedItems.slice(0,6);
+  const hasMore=!showAllFeed&&feedItems.length>6;
+
+  // Date update helpers
+  const updateR2BDate=(item,newDate)=>{
+    const newLog=(data.r2bLog||[]).map(e=>{
+      if(e.type==="b2b"&&item.isBb&&e.player===item.player&&e.date===item.date) return {...e,date:newDate};
+      if(e.type!=="b2b"&&!item.isBb&&e.player===item.player&&e.hole===item.hole&&e.date===item.date) return {...e,date:newDate};
+      return e;
+    });
+    save({...data,r2bLog:newLog});
+  };
+  const updateChallengeDate=(item,newDate)=>{
+    const newChallenges=(data.challenges||[]).map(c=>{
+      if(c.title!==item.challengeTitle) return c;
+      return {...c,doneDates:{...(c.doneDates||{}),[item.player]:newDate}};
+    });
+    save({...data,challenges:newChallenges});
+  };
 
   return(
     <div style={{display:"flex",flexDirection:"column",gap:14}}>
+      {/* Date edit modal */}
+      {editDateItem&&(
+        <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.75)",zIndex:300,display:"flex",alignItems:"center",justifyContent:"center",padding:20}}>
+          <div className="card" style={{maxWidth:320,width:"100%",borderColor:"#f472b6"}}>
+            <div style={{fontWeight:700,fontSize:15,marginBottom:6}}>📅 Datum aanpassen</div>
+            <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:13,color:"#8a9a88",marginBottom:12}}>{editDateItem.label}</div>
+            <DatePicker value={editDateItem.newDate||editDateItem.currentDate} onChange={v=>setEditDateItem(d=>({...d,newDate:v}))}/>
+            <div style={{display:"flex",gap:8,marginTop:12}}>
+              <button onClick={()=>setEditDateItem(null)} style={{flex:1,padding:"10px",borderRadius:8,border:"1px solid #2a3a2a",background:"#131a14",color:"#6b7563",fontFamily:"'DM Sans',sans-serif",cursor:"pointer"}}>Annuleer</button>
+              <button onClick={()=>{
+                const nd=editDateItem.newDate||editDateItem.currentDate;
+                if(editDateItem.sourceType==="r2b") updateR2BDate(editDateItem,nd);
+                else updateChallengeDate(editDateItem,nd);
+                setEditDateItem(null);
+              }} style={{flex:1,padding:"10px",borderRadius:8,border:"none",background:"#f472b6",color:"#0a0510",fontFamily:"'DM Sans',sans-serif",fontWeight:700,cursor:"pointer"}}>Opslaan</button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Recente activiteit — full width at top */}
       <div className="card">
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
@@ -427,20 +468,43 @@ function Dashboard({data}){
             {showAllFeed?"← Laatste 3 maanden":"📜 Volledige geschiedenis"}
           </button>
         </div>
-        {feedItems.length===0
+        {visibleItems.length===0
           ?<div style={{color:"#4b5563",fontFamily:"'DM Sans',sans-serif",fontSize:13}}>Geen activiteit in de laatste 3 maanden.</div>
-          :<div style={{columns:showAllFeed?"1":"2 280px",columnGap:16,maxHeight:showAllFeed?500:undefined,overflowY:showAllFeed?"auto":undefined}}>
-            {feedItems.map((m,i)=>(
-              <div key={i} style={{display:"flex",alignItems:"center",gap:8,padding:"7px 0",borderBottom:"1px solid #131a14",fontFamily:"'DM Sans',sans-serif",fontSize:13,breakInside:"avoid"}}>
-                <span className="tag" style={{background:`${typeColor[m.type]||"#888"}18`,color:typeColor[m.type]||"#888",flexShrink:0,fontSize:10,minWidth:60,textAlign:"center"}}>{m.type}</span>
-                <span style={{flex:1,color:"#8a9a88",fontSize:12,minWidth:0,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{m.label}</span>
-                {m.date&&<span style={{color:"#4b5563",fontSize:11,flexShrink:0,fontFamily:"'DM Sans',sans-serif"}}>{m.date}</span>}
-                {m.type==="Score"
-                  ?<span style={{color:PC[m.player]||"#a78bfa",fontWeight:700,flexShrink:0}}>{m.score===0?"E":m.score>0?"+"+m.score:m.score}</span>
-                  :(m.winner&&<span style={{color:PC[m.winner],fontWeight:600,flexShrink:0}}>🏆 {m.winner}</span>)}
-              </div>
-            ))}
-          </div>
+          :<>
+            <div style={{columns:showAllFeed?"1":"2 280px",columnGap:16,maxHeight:showAllFeed?500:undefined,overflowY:showAllFeed?"auto":undefined}}>
+              {visibleItems.map((m,i)=>{
+                const isR2B = m.type==="R2B";
+                const isChallenge = m.type==="Challenge";
+                const canEditDate = isR2B||isChallenge;
+                return(
+                  <div key={i} style={{display:"flex",alignItems:"center",gap:8,padding:"7px 0",borderBottom:"1px solid #131a14",fontFamily:"'DM Sans',sans-serif",fontSize:13,breakInside:"avoid"}}>
+                    <span className="tag" style={{background:`${typeColor[m.type]||"#888"}18`,color:typeColor[m.type]||"#888",flexShrink:0,fontSize:10,minWidth:60,textAlign:"center"}}>{m.type}</span>
+                    <span style={{flex:1,color:"#8a9a88",fontSize:12,minWidth:0,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{m.label}</span>
+                    {m.date&&<span style={{color:"#4b5563",fontSize:11,flexShrink:0,fontFamily:"'DM Sans',sans-serif"}}>{m.date}</span>}
+                    {canEditDate&&(
+                      <button onClick={()=>setEditDateItem({
+                        label:m.label,
+                        currentDate:m.date||"",
+                        sourceType:isR2B?"r2b":"challenge",
+                        player:m.player,
+                        hole:m.hole,
+                        isBb:m.isBb,
+                        challengeTitle:m.challengeTitle,
+                      })} style={{background:"none",border:"1px solid #2a3a2a",borderRadius:5,color:"#4b5563",cursor:"pointer",fontSize:10,padding:"2px 6px",flexShrink:0,fontFamily:"'DM Sans',sans-serif"}}>📅</button>
+                    )}
+                    {m.type==="Score"
+                      ?<span style={{color:PC[m.player]||"#a78bfa",fontWeight:700,flexShrink:0}}>{m.score===0?"E":m.score>0?"+"+m.score:m.score}</span>
+                      :(m.winner&&<span style={{color:PC[m.winner],fontWeight:600,flexShrink:0}}>🏆 {m.winner}</span>)}
+                  </div>
+                );
+              })}
+            </div>
+            {hasMore&&(
+              <button onClick={()=>setShowExpanded(v=>!v)} style={{marginTop:10,width:"100%",background:"#131a14",border:"1px solid #2a3a2a",borderRadius:7,color:"#6b7563",padding:"7px",fontFamily:"'DM Sans',sans-serif",fontSize:12,cursor:"pointer"}}>
+                {showExpanded?`▲ Minder tonen`:`▼ Nog ${feedItems.length-6} meer tonen`}
+              </button>
+            )}
+          </>
         }
       </div>
 
