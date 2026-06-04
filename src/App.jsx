@@ -1,4 +1,5 @@
 import { useState, useCallback, useEffect, useRef } from "react";
+import { createPortal } from "react-dom";
 import { initializeApp } from "firebase/app";
 import { getFirestore, doc, getDoc, setDoc } from "firebase/firestore";
 
@@ -133,6 +134,16 @@ function DatePicker({ value, onChange }) {
   );
 }
 
+
+// Portal-based Modal — always renders on document.body, never affected by parent scroll/transform
+function Modal({children}){
+  return createPortal(
+    <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.85)",zIndex:99999,display:"flex",alignItems:"center",justifyContent:"center",padding:"20px",boxSizing:"border-box"}}>
+      {children}
+    </div>,
+    document.body
+  );
+}
 
 // Firebase replaces localStorage
 
@@ -318,9 +329,13 @@ export default function GolfApp() {
 
   const updateR2BDate=(item,newDate)=>{
     const d=dataRef.current;
+    let matched=false;
     const newLog=(d.r2bLog||[]).map(e=>{
-      if(e.type==="b2b"&&item.isBb&&e.player===item.player&&e.date===item.currentDate) return {...e,date:newDate};
-      if(e.type!=="b2b"&&!item.isBb&&e.player===item.player&&e.hole===item.hole&&e.date===item.currentDate) return {...e,date:newDate};
+      if(matched) return e; // only update first match
+      const isB2B=e.type==="b2b";
+      const matchB2B=isB2B&&item.isBb&&e.player===item.player&&e.date===item.currentDate;
+      const matchBirdie=!isB2B&&!item.isBb&&e.player===item.player&&String(e.hole)===String(item.hole)&&e.date===item.currentDate;
+      if(matchB2B||matchBirdie){ matched=true; return {...e,date:newDate}; }
       return e;
     });
     save({...d,r2bLog:newLog});
@@ -356,7 +371,7 @@ export default function GolfApp() {
   return (
     <>
     {editDateItem&&(
-      <div style={modalOverlay}>
+      <Modal>
         <div style={{...modalCard,borderColor:"#f472b6"}}>
           <div style={{fontWeight:700,fontSize:15,color:"#e8e4d8",marginBottom:6}}>📅 Datum aanpassen</div>
           <div style={{fontSize:13,color:"#8a9a88",marginBottom:14,lineHeight:1.4}}>{editDateItem.label}</div>
@@ -372,10 +387,10 @@ export default function GolfApp() {
             }} style={modalBtn(true,"#f472b6")}>Opslaan</button>
           </div>
         </div>
-      </div>
+      </Modal>
     )}
     {voteModal&&(
-      <div style={modalOverlay}>
+      <Modal>
         <div style={{...modalCard,borderColor:voteModal.type==="up"?"#4ade80":"#f87171"}}>
           <div style={{fontWeight:700,fontSize:15,color:"#e8e4d8",marginBottom:6}}>{voteModal.type==="up"?"👍 Upvote":"👎 Downvote"}</div>
           <div style={{fontSize:13,color:"#8a9a88",marginBottom:14}}>
@@ -392,7 +407,7 @@ export default function GolfApp() {
             </button>
           </div>
         </div>
-      </div>
+      </Modal>
     )}
     <div style={{minHeight:"100vh",background:"#0a0e1a",fontFamily:"'Playfair Display',Georgia,serif",color:"#e8e4d8"}}>
       <style>{`
@@ -1231,8 +1246,6 @@ function ChallengesTab({data,save,voteModal,setVoteModal,voteName,setVoteName}){
   const [showForm,setShowForm] = useState(false);
   const [form,setForm] = useState({title:"",desc:"",addedBy:""});
   const [editId,setEditId] = useState(null);
-  const [voteModal,setVoteModal] = useState(null);
-  const [voteName,setVoteName] = useState("");
 
   const addOrEdit = () => {
     if(!form.title.trim()) return;
