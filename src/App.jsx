@@ -1296,15 +1296,20 @@ function RecordsTab({data,save}){
             <thead><tr>
               <th style={{minWidth:160}}></th>
               {PLAYERS.map(p=><th key={p} style={{color:PC[p],textAlign:"center"}}>{p}</th>)}
+              {editMode&&<th></th>}
             </tr></thead>
             <tbody>
               {(editMode?localRec:rec).stats.map((row,i)=>{
-                // find best value per row
                 const vals=PLAYERS.map(p=>parseFloat(row[p])).filter(v=>!isNaN(v));
                 const best=vals.length?Math.max(...vals):null;
                 return(
                   <tr key={i}>
-                    <td style={{fontFamily:"'DM Sans',sans-serif",fontSize:13,color:"#e8e4d8"}}>{row.label}</td>
+                    <td style={{fontFamily:"'DM Sans',sans-serif",fontSize:13,color:"#e8e4d8"}}>
+                      {editMode
+                        ?<input value={localRec.stats[i].label||""} onChange={e=>updateStat(i,"label",e.target.value)} style={{background:"#131a14",border:"1px solid #2a3a2a",borderRadius:4,color:"#e8e4d8",padding:"3px 5px",width:"100%",fontFamily:"'DM Sans',sans-serif",fontSize:12}}/>
+                        :row.label
+                      }
+                    </td>
                     {PLAYERS.map(p=>{
                       const v=parseFloat(row[p]);
                       const isBest=!isNaN(v)&&v===best;
@@ -1312,18 +1317,29 @@ function RecordsTab({data,save}){
                         <td key={p} style={{textAlign:"center"}}>
                           {editMode
                             ?<input value={localRec.stats[i][p]||""} onChange={e=>updateStat(i,p,e.target.value)} style={{background:"#131a14",border:"1px solid #2a3a2a",borderRadius:4,color:"#e8e4d8",padding:"3px 5px",width:50,fontFamily:"'DM Sans',sans-serif",fontSize:12,textAlign:"center"}}/>
-                            :<span className={isBest?"rec-best":""} style={{fontFamily:"'DM Sans',sans-serif",fontSize:13,color:isBest?PC[p]:"#8a9a88"}}>{row[p]||""}</span>
+                            :<span style={{fontFamily:"'DM Sans',sans-serif",fontSize:13,color:isBest?PC[p]:"#8a9a88",fontWeight:isBest?700:400}}>{row[p]||""}</span>
                           }
                         </td>
                       );
                     })}
+                    {editMode&&(
+                      <td>
+                        <button onClick={()=>{const ns=[...localRec.stats];ns.splice(i,1);setLocalRec({...localRec,stats:ns});}} style={{background:"none",border:"none",color:"#f87171",cursor:"pointer",fontSize:16,padding:"0 6px"}}>×</button>
+                      </td>
+                    )}
                   </tr>
                 );
               })}
             </tbody>
           </table>
         </div>
-        <div style={{marginTop:10,fontSize:11,color:"#4b5563",fontFamily:"'DM Sans',sans-serif"}}>Beste waarde per rij is gekleurd weergegeven.</div>
+        {editMode&&(
+          <button onClick={()=>setLocalRec({...localRec,stats:[...localRec.stats,{label:"Nieuwe stat",Rob:"",Joost:"",Thomas:"",Joris:""}]})}
+            style={{marginTop:10,background:"#1e3a1e",border:"1px solid #2a4a2a",color:"#4ade80",padding:"7px 14px",borderRadius:7,fontFamily:"'DM Sans',sans-serif",fontSize:12,cursor:"pointer"}}>
+            + Rij toevoegen
+          </button>
+        )}
+        {!editMode&&<div style={{marginTop:10,fontSize:11,color:"#4b5563",fontFamily:"'DM Sans',sans-serif"}}>Beste waarde per rij is gekleurd weergegeven.</div>}
       </div>
     </div>
   );
