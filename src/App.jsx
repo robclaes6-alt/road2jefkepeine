@@ -471,6 +471,33 @@ export default function GolfApp() {
           <NotesButton data={data} save={save}/>
         </div>
       </div>
+      {/* Reigning champs — subtle strip below main header, above tabs */}
+      {(()=>{
+        const mastersSorted=[...(data.masters||[])].sort((a,b)=>b.year-a.year);
+        const usopenSorted=[...(data.usOpen||[])].sort((a,b)=>b.year-a.year);
+        const ryderData=data.ryderCup||RYDER_DEFAULT;
+        const ryderSortedByYear=[...ryderData].sort((a,b)=>b.year-a.year);
+        const champs=[
+          {label:"Masters",icon:"🏆",name:mastersSorted[0]?.results?.[0],year:mastersSorted[0]?.year,color:"#e8a838"},
+          {label:"US Open",icon:"🌊",name:usopenSorted[0]?.results?.[0],year:usopenSorted[0]?.year,color:"#60a5fa"},
+          {label:"Ryder",icon:"⛳",name:(()=>{const r=ryderSortedByYear[0];if(!r)return null;return(r.winner==="team1"?r.team1:r.team2).join(" & ");})(),year:ryderSortedByYear[0]?.year,color:"#4ade80"},
+        ].filter(c=>c.name);
+        if(!champs.length) return null;
+        return(
+          <div style={{display:"flex",borderBottom:"1px solid #131a14",background:"#060c10",position:"sticky",top:52,zIndex:48}}>
+            {champs.map((c,i)=>(
+              <button key={c.label} onClick={()=>setTab("tornooien")}
+                style={{flex:"1 1 0",display:"flex",alignItems:"center",gap:6,padding:"4px 10px",background:"transparent",border:"none",borderRight:i<champs.length-1?"1px solid #111820":"none",cursor:"pointer",minWidth:0}}>
+                <span style={{fontSize:10}}>{c.icon}</span>
+                <div style={{minWidth:0,flex:1,overflow:"hidden"}}>
+                  <div style={{fontSize:9,color:"#4b5563",fontFamily:"'DM Sans',sans-serif",letterSpacing:0.5,textTransform:"uppercase",lineHeight:1.2}}>{c.label} {c.year}</div>
+                  <div style={{fontSize:11,fontWeight:700,color:PC[c.name]||"#e8e4d8",fontFamily:"'DM Sans',sans-serif",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis",lineHeight:1.3}}>{c.name}</div>
+                </div>
+              </button>
+            ))}
+          </div>
+        );
+      })()}
 
       {/* Nav */}
       <div style={{display:"flex",gap:2,padding:"7px 10px",borderBottom:"1px solid #1e2a1e",background:"#0d1218",overflowX:"auto",position:"sticky",top:52,zIndex:49}}>
@@ -481,30 +508,7 @@ export default function GolfApp() {
         ))}
       </div>
 
-      {/* Reigning Champions strip */}
-      {(()=>{
-        const mastersSorted=[...(data.masters||[])].sort((a,b)=>b.year-a.year);
-        const usopenSorted=[...(data.usOpen||[])].sort((a,b)=>b.year-a.year);
-        const ryderData=data.ryderCup||RYDER_DEFAULT;
-        const ryderSortedByYear=[...ryderData].sort((a,b)=>b.year-a.year);
-        const champs=[
-          {label:"Masters",icon:"🏆",name:mastersSorted[0]?.results?.[0],year:mastersSorted[0]?.year,color:"#e8a838",goTo:"tornooien",subView:"masters"},
-          {label:"US Open",icon:"🌊",name:usopenSorted[0]?.results?.[0],year:usopenSorted[0]?.year,color:"#60a5fa",goTo:"tornooien",subView:"usopen"},
-          {label:"Ryder Cup",icon:"⛳",name:(()=>{const r=ryderSortedByYear[0];if(!r)return null;return(r.winner==="team1"?r.team1:r.team2).join(" & ");})(),year:ryderSortedByYear[0]?.year,color:"#4ade80",goTo:"tornooien",subView:"ryder"},
-        ].filter(c=>c.name);
-        if(!champs.length) return null;
-        return(
-          <div style={{display:"flex",gap:0,borderBottom:"1px solid #1e2a1e",background:"#080d10",overflowX:"auto"}}>
-            {champs.map((c,i)=>(
-              <button key={c.label} onClick={()=>{setTab(c.goTo);}} style={{flex:"1 1 0",minWidth:0,display:"flex",flexDirection:"column",alignItems:"center",padding:"6px 8px",background:"transparent",border:"none",borderRight:i<champs.length-1?"1px solid #1a2a1a":"none",cursor:"pointer",gap:1}}>
-                <div style={{fontSize:9,color:"#4b5563",fontFamily:"'DM Sans',sans-serif",letterSpacing:1,textTransform:"uppercase"}}>{c.icon} {c.label}</div>
-                <div style={{fontSize:12,fontWeight:700,color:PC[c.name]||"#e8e4d8",fontFamily:"'DM Sans',sans-serif",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis",maxWidth:"100%"}}>{c.name}</div>
-                {c.year&&<div style={{fontSize:9,color:"#4b5563",fontFamily:"'DM Sans',sans-serif"}}>{c.year}</div>}
-              </button>
-            ))}
-          </div>
-        );
-      })()}
+
 
       <div style={{padding:"16px",maxWidth:960,margin:"0 auto"}} className="anim" key={tab}>
         {tab==="dashboard" && <Dashboard data={data} save={save} editDateItem={editDateItem} setEditDateItem={setEditDateItem}/>}
