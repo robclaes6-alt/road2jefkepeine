@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useRef } from "react";
+import React, { useState, useCallback, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { initializeApp } from "firebase/app";
 import { getFirestore, doc, getDoc, setDoc } from "firebase/firestore";
@@ -1139,6 +1139,7 @@ function RecordsTab({data,save}){
   const rec=data.records||defaultData.records;
   const [editMode,setEditMode]=useState(false);
   const [localRec,setLocalRec]=useState(()=>JSON.parse(JSON.stringify(rec)));
+  const [expandedCourses,setExpandedCourses]=useState({});
 
   const saveRec=()=>{save({...data,records:localRec});setEditMode(false);};
   const cancelEdit=()=>{setLocalRec(JSON.parse(JSON.stringify(rec)));setEditMode(false);};
@@ -1154,16 +1155,38 @@ function RecordsTab({data,save}){
     setLocalRec({...localRec,stats:ns});
   };
 
-  // highlight best (lowest number / bold red in original) per player-column in courses
-  // We just display as-is with special coloring for negative values
   const valColor=(val)=>{
     if(!val||val==="")return "#8a9a88";
-    if(val.startsWith("-"))return "#4ade80"; // negative = better score = green
+    if(val.startsWith("-"))return "#4ade80";
     if(val==="E")return "#e8e4d8";
     return "#e8e4d8";
   };
-
   const boldRed=(val)=>val&&(val.startsWith("-")||val.endsWith("up"));
+
+  // Parse score value for comparison (lower = better)
+  const parseScore=(val)=>{
+    if(!val||val==="")return null;
+    if(val==="E")return 0;
+    return parseFloat(val);
+  };
+
+  // Course order
+  const COURSE_ORDER=["Millenium 18","Rigenee 18","Ternesse 18","Haverleij 18","Gendersteyn G/R"];
+  const AUTO_EXPAND=["Millenium 18"]; // always show front/back
+
+  // Group courses
+  const courses=(editMode?localRec:rec).courses;
+  const grouped=COURSE_ORDER.map(name=>({
+    name,
+    main:courses.find(r=>r.course===name&&!r.sub),
+    subs:courses.filter(r=>r.course===name&&r.sub),
+  })).filter(g=>g.main||g.subs.length>0);
+  // Any courses not in COURSE_ORDER go at end
+  const otherNames=[...new Set(courses.map(r=>r.course))].filter(n=>!COURSE_ORDER.includes(n));
+  otherNames.forEach(name=>grouped.push({name,main:courses.find(r=>r.course===name&&!r.sub),subs:courses.filter(r=>r.course===name&&r.sub)}));
+
+  const toggleCourse=(name)=>setExpandedCourses(e=>({...e,[name]:!e[name]}));
+  const isExpanded=(name)=>AUTO_EXPAND.includes(name)||!!expandedCourses[name];
 
   return(
     <div style={{display:"flex",flexDirection:"column",gap:14}}>
@@ -1188,22 +1211,70 @@ function RecordsTab({data,save}){
               {PLAYERS.map(p=><th key={p} style={{color:PC[p],textAlign:"center"}}>{p}</th>)}
             </tr></thead>
             <tbody>
-              {(editMode?localRec:rec).courses.map((row,i)=>{
-                const isMain=!row.sub;
+              {grouped.map(({name,main,subs})=>{
+                // Find best score across players for the main row
+                const allRows=[...(main?[main]:[]),...subs];
+                const mainScores=main?PLAYERS.map(p=>parseScore(main[p])).filter(v=>v!==null):[];
+                const bestMain=mainScores.length?Math.min(...mainScores):null;
+                const expanded=isExpanded(name);
+                const autoExp=AUTO_EXPAND.includes(name);
+                const mainRow=main||subs[0];
+                const mainIdx=courses.indexOf(mainRow);
+
                 return(
-                  <tr key={i} style={{background:isMain?"#0f1820":"transparent"}}>
-                    <td style={{fontFamily:"'DM Sans',sans-serif",fontWeight:isMain?600:400,fontSize:isMain?14:12,paddingLeft:isMain?10:22,color:isMain?"#e8e4d8":"#6b7563"}}>
-                      {isMain?row.course:row.sub}
-                    </td>
-                    {PLAYERS.map(p=>(
-                      <td key={p} style={{textAlign:"center"}}>
-                        {editMode
-                          ?<input value={localRec.courses[i][p]||""} onChange={e=>updateCourse(i,p,e.target.value)} style={{background:"#131a14",border:"1px solid #2a3a2a",borderRadius:4,color:"#e8e4d8",padding:"3px 5px",width:56,fontFamily:"'DM Sans',sans-serif",fontSize:12,textAlign:"center"}}/>
-                          :<span style={{fontFamily:"'DM Sans',sans-serif",fontSize:13,fontWeight:boldRed(row[p])?700:400,color:valColor(row[p])}}>{row[p]||""}</span>
-                        }
+                  <React.Fragment key={name}>
+                    {/* Main course row */}
+                    <tr style={{background:"#0f1820",cursor:subs.length&&!autoExp?"pointer":"default"}}
+                        onClick={subs.length&&!autoExp?()=>toggleCourse(name):undefined}>
+                      <td style={{fontFamily:"'DM Sans',sans-serif",fontWeight:600,fontSize:14,paddingLeft:10,color:"#e8e4d8",display:"flex",alignItems:"center",gap:6,paddingTop:8,paddingBottom:8}}>
+                        {subs.length>0&&!autoExp&&<span style={{fontSize:10,color:"#4b5563"}}>{expanded?"▼":"▶"}</span>}
+                        {name}
                       </td>
-                    ))}
-                  </tr>
+                      {PLAYERS.map(p=>{
+                        const val=main?main[p]:"";
+                        const score=parseScore(val);
+                        const isBest=score!==null&&score===bestMain&&mainScores.filter(s=>s===bestMain).length<PLAYERS.length;
+                        return(
+                          <td key={p} style={{textAlign:"center",background:isBest?`${PC[p]}15`:"transparent",borderRadius:4}}>
+                            {editMode&&main
+                              ?<input value={localRec.courses[mainIdx]?.[p]||""} onChange={e=>updateCourse(mainIdx,p,e.target.value)} style={{background:"#131a14",border:"1px solid #2a3a2a",borderRadius:4,color:"#e8e4d8",padding:"3px 5px",width:56,fontFamily:"'DM Sans',sans-serif",fontSize:12,textAlign:"center"}}/>
+                              :<span style={{fontFamily:"'DM Sans',sans-serif",fontSize:13,fontWeight:isBest?700:boldRed(val)?700:400,color:isBest?PC[p]:valColor(val)}}>
+                                {val||""}
+                                {isBest&&<span style={{fontSize:9,marginLeft:2}}>★</span>}
+                              </span>
+                            }
+                          </td>
+                        );
+                      })}
+                    </tr>
+                    {/* Sub rows (Front/Back) */}
+                    {expanded&&subs.map(sub=>{
+                      const subIdx=courses.indexOf(sub);
+                      const subScores=PLAYERS.map(p=>parseScore(sub[p])).filter(v=>v!==null);
+                      const bestSub=subScores.length?Math.min(...subScores):null;
+                      return(
+                        <tr key={sub.sub} style={{background:"transparent"}}>
+                          <td style={{fontFamily:"'DM Sans',sans-serif",fontWeight:400,fontSize:12,paddingLeft:28,color:"#6b7563"}}>{sub.sub}</td>
+                          {PLAYERS.map(p=>{
+                            const val=sub[p];
+                            const score=parseScore(val);
+                            const isBest=score!==null&&score===bestSub&&subScores.filter(s=>s===bestSub).length<PLAYERS.length;
+                            return(
+                              <td key={p} style={{textAlign:"center",background:isBest?`${PC[p]}15`:"transparent",borderRadius:4}}>
+                                {editMode
+                                  ?<input value={localRec.courses[subIdx]?.[p]||""} onChange={e=>updateCourse(subIdx,p,e.target.value)} style={{background:"#131a14",border:"1px solid #2a3a2a",borderRadius:4,color:"#e8e4d8",padding:"3px 5px",width:56,fontFamily:"'DM Sans',sans-serif",fontSize:12,textAlign:"center"}}/>
+                                  :<span style={{fontFamily:"'DM Sans',sans-serif",fontSize:13,fontWeight:isBest?700:boldRed(val)?700:400,color:isBest?PC[p]:valColor(val)}}>
+                                    {val||""}
+                                    {isBest&&<span style={{fontSize:9,marginLeft:2}}>★</span>}
+                                  </span>
+                                }
+                              </td>
+                            );
+                          })}
+                        </tr>
+                      );
+                    })}
+                  </React.Fragment>
                 );
               })}
             </tbody>
