@@ -640,6 +640,7 @@ function ZeroSumGame({data,save}){
   const [form,setForm]=useState({date:"",p1:"Rob",p2:"Thomas",winner:"",margin:"",type:"2p",roundId:"",course:"Millenium",customCourse:"",notes:""});
   const [expandedMatch,setExpandedMatch]=useState(null);
   const [showForm,setShowForm]=useState(false);
+  const [editId,setEditId]=useState(null);
   const standings=calcZeroSum(data.zeroSum||[]);
 
   const thirdPlayer=(p1,p2)=>PLAYERS.find(p=>p!==p1&&p!==p2&&p!=="Joris")||PLAYERS.find(p=>p!==p1&&p!==p2);
@@ -649,12 +650,24 @@ function ZeroSumGame({data,save}){
 
   const addMatch=()=>{
     if(!form.winner||!form.date)return;
-    const courseVal=form.course==="custom"?(form.customCourse||"?"):form.course;save({...data,zeroSum:[...(data.zeroSum||[]),{...form,course:courseVal,id:Date.now()}]});
-    setForm(f=>({...f,winner:"",margin:"",date:""}));
+    const courseVal=form.course==="custom"?(form.customCourse||"?"):form.course;
+    if(editId!==null){
+      save({...data,zeroSum:(data.zeroSum||[]).map(m=>m.id===editId?{...form,course:courseVal,id:editId}:m)});
+      setEditId(null);
+    } else {
+      save({...data,zeroSum:[...(data.zeroSum||[]),{...form,course:courseVal,id:Date.now()}]});
+    }
+    setForm(f=>({...f,winner:"",margin:"",date:"",notes:""}));
     setShowForm(false);
   };
 
   const removeMatch=(id)=>save({...data,zeroSum:(data.zeroSum||[]).filter(m=>m.id!==id)});
+
+  const startEdit=(m)=>{
+    setForm({date:m.date||"",p1:m.p1||"Rob",p2:m.p2||"Thomas",winner:m.winner||"",margin:m.margin||"",type:m.type||"2p",roundId:m.roundId||"",course:m.course||"Millenium",customCourse:"",notes:m.notes||""});
+    setEditId(m.id);
+    setShowForm(true);
+  };
 
   const marginOptions=["1 up","2 up","3 up","4 up","5 up","6 up","7 up","8 up","9 up","10 up","11 up","12 up","13 up","14 up","15 up","16 up","17 up","18 up"];
 
@@ -680,8 +693,8 @@ function ZeroSumGame({data,save}){
       </div>
 
       {/* Add match button */}
-      <button onClick={()=>setShowForm(v=>!v)} style={{background:"#4ade80",color:"#0a1a0a",padding:"11px",borderRadius:10,fontFamily:"'DM Sans',sans-serif",fontWeight:700,fontSize:14,border:"none",cursor:"pointer"}}>
-        {showForm?"✕ Annuleer":"+ Nieuwe Match"}
+      <button onClick={()=>{setShowForm(v=>!v);setEditId(null);setForm({date:"",p1:"Rob",p2:"Thomas",winner:"",margin:"",type:"2p",roundId:"",course:"Millenium",customCourse:"",notes:""});}} style={{background:"#4ade80",color:"#0a1a0a",padding:"11px",borderRadius:10,fontFamily:"'DM Sans',sans-serif",fontWeight:700,fontSize:14,border:"none",cursor:"pointer"}}>
+        {showForm&&editId===null?"✕ Annuleer":editId?"✕ Annuleer":"+ Nieuwe Match"}
       </button>
 
       {/* Add form */}
@@ -765,7 +778,7 @@ function ZeroSumGame({data,save}){
             </div>
             {/* Save */}
             <button onClick={addMatch} disabled={!form.winner||!form.date} style={{background:"#4ade80",color:"#0a1a0a",padding:"12px",borderRadius:9,fontFamily:"'DM Sans',sans-serif",fontWeight:700,fontSize:14,cursor:"pointer",border:"none",opacity:(!form.winner||!form.date)?0.4:1}}>
-              Match Opslaan
+              {editId?"Match Bijwerken":"Match Opslaan"}
             </button>
           </div>
         </div>
@@ -790,6 +803,7 @@ function ZeroSumGame({data,save}){
                   {m.course&&<span className="tag" style={{background:"#1a1a2e",color:"#a78bfa",flexShrink:0,fontSize:11}}>{m.course}</span>}
                   {m.margin&&<span className="tag" style={{background:"#1e2a0e",color:"#a0c870",flexShrink:0}}>{m.margin}</span>}
                   {m.notes&&<button onClick={()=>setExpandedMatch(expandedMatch===m.id?null:m.id)} style={{background:"none",border:"1px solid #2a3a2a",borderRadius:5,color:expandedMatch===m.id?"#e8a838":"#6b7563",cursor:"pointer",fontSize:11,padding:"2px 7px",fontFamily:"'DM Sans',sans-serif",flexShrink:0}}>📖 {expandedMatch===m.id?"▲":"▼"}</button>}
+                  <button onClick={()=>startEdit(m)} style={{background:"none",border:"1px solid #2a3a2a",borderRadius:5,color:"#6b7563",cursor:"pointer",fontSize:11,padding:"2px 7px",fontFamily:"'DM Sans',sans-serif",flexShrink:0}}>✏️</button>
                   <button onClick={()=>removeMatch(m.id)} style={{background:"none",border:"none",color:"#4b5563",cursor:"pointer",fontSize:17,padding:"0 4px",lineHeight:1}}>×</button>
                 </div>
                 {m.notes&&expandedMatch===m.id&&(
