@@ -822,31 +822,57 @@ function ZeroSumGame({data,save}){
       {(data.zeroSum||[]).length>0&&(
         <div className="card">
           <div style={{fontSize:12,color:"#6b7563",fontFamily:"'DM Sans',sans-serif",letterSpacing:2,textTransform:"uppercase",marginBottom:10}}>Match Geschiedenis</div>
-          <div style={{maxHeight:400,overflowY:"auto"}}>
-            {[...(data.zeroSum||[])].reverse().map((m,i)=>(
-              <div key={m.id||i} style={{borderBottom:"1px solid #131a14",padding:"7px 0"}}>
-                <div style={{display:"grid",gridTemplateColumns:"72px 1fr auto auto auto auto auto",alignItems:"center",gap:6,fontFamily:"'DM Sans',sans-serif",fontSize:13}}>
-                  <span style={{color:"#4b5563",fontSize:11,flexShrink:0}}>{m.date}</span>
-                  <span>
-                    <span style={{color:PC[m.p1]}}>{m.p1}</span>
-                    <span style={{color:"#4b5563"}}> vs </span>
-                    <span style={{color:PC[m.p2]}}>{m.p2}</span>
-                    {m.type==="3p"&&<span style={{marginLeft:4,fontSize:10,color:"#60a5fa"}}>(3P)</span>}
-                  </span>
-                  <span style={{color:PC[m.winner],fontWeight:600,whiteSpace:"nowrap"}}>🏆 {m.winner}</span>
-                  {m.course?<span className="tag" style={{background:"#1a1a2e",color:"#a78bfa",fontSize:11,whiteSpace:"nowrap"}}>{m.course}</span>:<span/>}
-                  {m.margin?<span className="tag" style={{background:"#1e2a0e",color:"#a0c870",whiteSpace:"nowrap"}}>{m.margin}</span>:<span/>}
-                  {m.notes?<button onClick={()=>setExpandedMatch(expandedMatch===m.id?null:m.id)} style={{background:"none",border:"1px solid #2a3a2a",borderRadius:5,color:expandedMatch===m.id?"#e8a838":"#6b7563",cursor:"pointer",fontSize:11,padding:"2px 6px",fontFamily:"'DM Sans',sans-serif"}}>📖</button>:<span/>}
-                  <div style={{display:"flex",gap:4}}>
-                    <button onClick={()=>startEdit(m)} style={{background:"none",border:"1px solid #2a3a2a",borderRadius:5,color:"#6b7563",cursor:"pointer",fontSize:11,padding:"2px 6px",fontFamily:"'DM Sans',sans-serif"}}>✏️</button>
-                    <button onClick={()=>removeMatch(m.id)} style={{background:"none",border:"none",color:"#4b5563",cursor:"pointer",fontSize:16,padding:"0 2px",lineHeight:1}}>×</button>
-                  </div>
-                </div>
-                {m.notes&&expandedMatch===m.id&&(
-                  <div style={{marginTop:6,fontSize:13,color:"#8a9a88",fontFamily:"'DM Sans',sans-serif",lineHeight:1.6,fontStyle:"italic",borderLeft:"2px solid #2a3a1e",paddingLeft:10}}>{m.notes}</div>
-                )}
-              </div>
-            ))}
+          <div style={{maxHeight:400,overflowY:"auto",overflowX:"auto"}}>
+            <table style={{width:"100%",borderCollapse:"collapse"}}>
+              <thead>
+                <tr style={{borderBottom:"1px solid #1e2a1e"}}>
+                  <th style={{fontFamily:"'DM Sans',sans-serif",fontSize:10,color:"#4b5563",fontWeight:400,textAlign:"left",padding:"4px 8px 6px 0",letterSpacing:1,textTransform:"uppercase",whiteSpace:"nowrap"}}>Datum</th>
+                  <th style={{fontFamily:"'DM Sans',sans-serif",fontSize:10,color:"#4b5563",fontWeight:400,textAlign:"left",padding:"4px 8px 6px",letterSpacing:1,textTransform:"uppercase"}}>Match</th>
+                  <th style={{fontFamily:"'DM Sans',sans-serif",fontSize:10,color:"#4b5563",fontWeight:400,textAlign:"left",padding:"4px 8px 6px",letterSpacing:1,textTransform:"uppercase"}}>Winnaar</th>
+                  <th style={{fontFamily:"'DM Sans',sans-serif",fontSize:10,color:"#4b5563",fontWeight:400,textAlign:"left",padding:"4px 8px 6px",letterSpacing:1,textTransform:"uppercase"}}>Baan</th>
+                  <th style={{fontFamily:"'DM Sans',sans-serif",fontSize:10,color:"#4b5563",fontWeight:400,textAlign:"left",padding:"4px 8px 6px",letterSpacing:1,textTransform:"uppercase"}}>Marge</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody>
+                {[...(data.zeroSum||[])].reverse().map((m,i)=>(
+                  <React.Fragment key={m.id||i}>
+                    <tr style={{borderBottom:m.notes&&expandedMatch===m.id?"none":"1px solid #131a14"}}>
+                      <td style={{padding:"8px 8px 8px 0",fontFamily:"'DM Sans',sans-serif",fontSize:11,color:"#4b5563",whiteSpace:"nowrap",verticalAlign:"middle"}}>{m.date}</td>
+                      <td style={{padding:"8px",verticalAlign:"middle",whiteSpace:"nowrap"}}>
+                        <span style={{color:PC[m.p1],fontWeight:600,fontFamily:"'DM Sans',sans-serif",fontSize:13}}>{m.p1}</span>
+                        <span style={{color:"#4b5563",fontFamily:"'DM Sans',sans-serif",fontSize:12}}> vs </span>
+                        <span style={{color:PC[m.p2],fontWeight:600,fontFamily:"'DM Sans',sans-serif",fontSize:13}}>{m.p2}</span>
+                        {m.type==="3p"&&<span style={{marginLeft:5,fontSize:10,color:"#60a5fa",fontFamily:"'DM Sans',sans-serif"}}>(3P)</span>}
+                      </td>
+                      <td style={{padding:"8px",verticalAlign:"middle",whiteSpace:"nowrap"}}>
+                        <span style={{color:PC[m.winner],fontWeight:700,fontFamily:"'DM Sans',sans-serif",fontSize:13}}>🏆 {m.winner}</span>
+                      </td>
+                      <td style={{padding:"8px",verticalAlign:"middle",whiteSpace:"nowrap"}}>
+                        {m.course&&<span style={{fontFamily:"'DM Sans',sans-serif",fontSize:12,color:"#a78bfa"}}>{m.course}</span>}
+                      </td>
+                      <td style={{padding:"8px",verticalAlign:"middle",whiteSpace:"nowrap"}}>
+                        {m.margin&&<span className="tag" style={{background:"#1e2a0e",color:"#a0c870"}}>{m.margin}</span>}
+                      </td>
+                      <td style={{padding:"8px 0 8px 4px",verticalAlign:"middle",whiteSpace:"nowrap"}}>
+                        <div style={{display:"flex",gap:4,alignItems:"center"}}>
+                          {m.notes&&<button onClick={()=>setExpandedMatch(expandedMatch===m.id?null:m.id)} style={{background:"none",border:"1px solid #2a3a2a",borderRadius:5,color:expandedMatch===m.id?"#e8a838":"#6b7563",cursor:"pointer",fontSize:11,padding:"2px 6px",fontFamily:"'DM Sans',sans-serif"}}>📖</button>}
+                          <button onClick={()=>startEdit(m)} style={{background:"none",border:"1px solid #2a3a2a",borderRadius:5,color:"#6b7563",cursor:"pointer",fontSize:11,padding:"2px 6px",fontFamily:"'DM Sans',sans-serif"}}>✏️</button>
+                          <button onClick={()=>removeMatch(m.id)} style={{background:"none",border:"none",color:"#4b5563",cursor:"pointer",fontSize:16,padding:"0 2px",lineHeight:1}}>×</button>
+                        </div>
+                      </td>
+                    </tr>
+                    {m.notes&&expandedMatch===m.id&&(
+                      <tr style={{borderBottom:"1px solid #131a14"}}>
+                        <td colSpan={6} style={{padding:"0 0 8px 0"}}>
+                          <div style={{fontSize:13,color:"#8a9a88",fontFamily:"'DM Sans',sans-serif",lineHeight:1.6,fontStyle:"italic",borderLeft:"2px solid #2a3a1e",paddingLeft:10}}>{m.notes}</div>
+                        </td>
+                      </tr>
+                    )}
+                  </React.Fragment>
+                ))}
+              </tbody>
+            </table>
           </div>
         </div>
       )}
