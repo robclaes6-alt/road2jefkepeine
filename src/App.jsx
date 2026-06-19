@@ -705,15 +705,22 @@ function ZeroSumGame({data,save}){
         <div style={{fontSize:12,color:"#e8a838",fontFamily:"'DM Sans',sans-serif",letterSpacing:2,textTransform:"uppercase",marginBottom:12}}>Klassement 2025</div>
         {standings.every(r=>r.played===0)
           ?<div style={{color:"#4b5563",fontFamily:"'DM Sans',sans-serif",fontSize:13,padding:"8px 0"}}>Nog geen matches gespeeld. Voeg de eerste match toe!</div>
-          :<table><thead><tr><th>#</th><th>Speler</th><th>Punten</th><th>Gespeeld</th><th>Gewonnen</th><th>Verloren</th></tr></thead>
+          :<table style={{width:"100%",tableLayout:"fixed"}}><thead><tr>
+              <th style={{width:32}}>#</th>
+              <th>Speler</th>
+              <th style={{width:56,textAlign:"center"}}>Winst%</th>
+              <th style={{width:50,textAlign:"center"}}>Ges.</th>
+              <th style={{width:44,textAlign:"center"}}>W</th>
+              <th style={{width:44,textAlign:"center"}}>V</th>
+            </tr></thead>
             <tbody>{getTiedRank(standings,r=>r.winPct).map(({item:row,medal})=>(
               <tr key={row.player}>
                 <td style={{fontFamily:"'DM Sans',sans-serif",fontSize:13}}>{medal}</td>
                 <td style={{fontWeight:700,color:PC[row.player]}}>{row.player}</td>
-                <td style={{fontWeight:700,fontSize:17,color:row.winPct>0.5?"#4ade80":row.winPct<0.5&&row.played>0?"#f87171":"#6b7563"}}>{row.played>0?Math.round(row.winPct*100)+"%":"—"}</td>
-                <td className="fade">{row.played}</td>
-                <td style={{color:"#4ade80"}}>{row.won}</td>
-                <td style={{color:"#f87171"}}>{row.played-row.won}</td>
+                <td style={{fontWeight:700,fontSize:14,color:"#e8e4d8",textAlign:"center"}}>{row.played>0?Math.round(row.winPct*100)+"%":"—"}</td>
+                <td style={{color:"#6b7563",fontFamily:"'DM Sans',sans-serif",textAlign:"center"}}>{row.played}</td>
+                <td style={{color:"#4ade80",textAlign:"center"}}>{row.won}</td>
+                <td style={{color:"#f87171",textAlign:"center"}}>{row.played-row.won}</td>
               </tr>
             ))}</tbody></table>
         }
@@ -817,21 +824,23 @@ function ZeroSumGame({data,save}){
           <div style={{fontSize:12,color:"#6b7563",fontFamily:"'DM Sans',sans-serif",letterSpacing:2,textTransform:"uppercase",marginBottom:10}}>Match Geschiedenis</div>
           <div style={{maxHeight:400,overflowY:"auto"}}>
             {[...(data.zeroSum||[])].reverse().map((m,i)=>(
-              <div key={m.id||i} style={{borderBottom:"1px solid #131a14",padding:"6px 0"}}>
-                <div style={{display:"flex",alignItems:"center",gap:8,fontFamily:"'DM Sans',sans-serif",fontSize:13}}>
-                  <span className="fade" style={{width:82,flexShrink:0,fontSize:12}}>{m.date}</span>
-                  {m.type==="3p"&&<span className="tag" style={{background:"#1a2a3a",color:"#60a5fa",flexShrink:0}}>3P</span>}
-                  <span style={{flex:1}}>
+              <div key={m.id||i} style={{borderBottom:"1px solid #131a14",padding:"7px 0"}}>
+                <div style={{display:"grid",gridTemplateColumns:"72px 1fr auto auto auto auto auto",alignItems:"center",gap:6,fontFamily:"'DM Sans',sans-serif",fontSize:13}}>
+                  <span style={{color:"#4b5563",fontSize:11,flexShrink:0}}>{m.date}</span>
+                  <span>
                     <span style={{color:PC[m.p1]}}>{m.p1}</span>
-                    <span className="fade"> vs </span>
+                    <span style={{color:"#4b5563"}}> vs </span>
                     <span style={{color:PC[m.p2]}}>{m.p2}</span>
+                    {m.type==="3p"&&<span style={{marginLeft:4,fontSize:10,color:"#60a5fa"}}>(3P)</span>}
                   </span>
-                  <span style={{color:PC[m.winner],fontWeight:600}}>🏆 {m.winner}</span>
-                  {m.course&&<span className="tag" style={{background:"#1a1a2e",color:"#a78bfa",flexShrink:0,fontSize:11}}>{m.course}</span>}
-                  {m.margin&&<span className="tag" style={{background:"#1e2a0e",color:"#a0c870",flexShrink:0}}>{m.margin}</span>}
-                  {m.notes&&<button onClick={()=>setExpandedMatch(expandedMatch===m.id?null:m.id)} style={{background:"none",border:"1px solid #2a3a2a",borderRadius:5,color:expandedMatch===m.id?"#e8a838":"#6b7563",cursor:"pointer",fontSize:11,padding:"2px 7px",fontFamily:"'DM Sans',sans-serif",flexShrink:0}}>📖 {expandedMatch===m.id?"▲":"▼"}</button>}
-                  <button onClick={()=>startEdit(m)} style={{background:"none",border:"1px solid #2a3a2a",borderRadius:5,color:"#6b7563",cursor:"pointer",fontSize:11,padding:"2px 7px",fontFamily:"'DM Sans',sans-serif",flexShrink:0}}>✏️</button>
-                  <button onClick={()=>removeMatch(m.id)} style={{background:"none",border:"none",color:"#4b5563",cursor:"pointer",fontSize:17,padding:"0 4px",lineHeight:1}}>×</button>
+                  <span style={{color:PC[m.winner],fontWeight:600,whiteSpace:"nowrap"}}>🏆 {m.winner}</span>
+                  {m.course?<span className="tag" style={{background:"#1a1a2e",color:"#a78bfa",fontSize:11,whiteSpace:"nowrap"}}>{m.course}</span>:<span/>}
+                  {m.margin?<span className="tag" style={{background:"#1e2a0e",color:"#a0c870",whiteSpace:"nowrap"}}>{m.margin}</span>:<span/>}
+                  {m.notes?<button onClick={()=>setExpandedMatch(expandedMatch===m.id?null:m.id)} style={{background:"none",border:"1px solid #2a3a2a",borderRadius:5,color:expandedMatch===m.id?"#e8a838":"#6b7563",cursor:"pointer",fontSize:11,padding:"2px 6px",fontFamily:"'DM Sans',sans-serif"}}>📖</button>:<span/>}
+                  <div style={{display:"flex",gap:4}}>
+                    <button onClick={()=>startEdit(m)} style={{background:"none",border:"1px solid #2a3a2a",borderRadius:5,color:"#6b7563",cursor:"pointer",fontSize:11,padding:"2px 6px",fontFamily:"'DM Sans',sans-serif"}}>✏️</button>
+                    <button onClick={()=>removeMatch(m.id)} style={{background:"none",border:"none",color:"#4b5563",cursor:"pointer",fontSize:16,padding:"0 2px",lineHeight:1}}>×</button>
+                  </div>
                 </div>
                 {m.notes&&expandedMatch===m.id&&(
                   <div style={{marginTop:6,fontSize:13,color:"#8a9a88",fontFamily:"'DM Sans',sans-serif",lineHeight:1.6,fontStyle:"italic",borderLeft:"2px solid #2a3a1e",paddingLeft:10}}>{m.notes}</div>
