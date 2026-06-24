@@ -263,47 +263,25 @@ function calcAllTimeTourney(history, isUSOpen=false) {
 }
 
 function calcZeroSum(matches) {
-  const played={}, won={}, totalUp={};
-  for(const p of PLAYERS){ played[p]=0; won[p]=0; totalUp[p]=0; }
+  const pts={}, played={}, won={}, totalUp={};
+  for(const p of PLAYERS){ pts[p]=0; played[p]=0; won[p]=0; totalUp[p]=0; }
 
-  // Parse margin string like "3 up" -> 3
   const parseUp=(m)=>{ const n=parseInt((m?.margin||"").replace(" up","")); return isNaN(n)?1:n; };
 
   for(const m of matches){
     if(!m.winner||!m.p1||!m.p2) continue;
     played[m.p1]++; played[m.p2]++;
     won[m.winner]++;
+    pts[m.winner]++;
+    const loser=m.winner===m.p1?m.p2:m.p1;
+    pts[loser]--;
     totalUp[m.winner]=(totalUp[m.winner]||0)+parseUp(m);
   }
 
-  // Head-to-head wins between two players
-  const h2h=(a,b)=>{
-    let aW=0, bW=0;
-    for(const m of matches){
-      if(!m.winner) continue;
-      const ps=[m.p1,m.p2,...(m.p3?[m.p3]:[])];
-      if(!ps.includes(a)||!ps.includes(b)) continue;
-      if(m.winner===a) aW++;
-      else if(m.winner===b) bW++;
-    }
-    return {a:aW,b:bW};
-  };
-
   const winPct=(p)=>played[p]>0?won[p]/played[p]:0;
 
-  const rows=PLAYERS.map(p=>({player:p,played:played[p],won:won[p],winPct:winPct(p),totalUp:totalUp[p]}));
-
-  rows.sort((a,b)=>{
-    // 1. Winning %
-    if(Math.abs(b.winPct-a.winPct)>0.0001) return b.winPct-a.winPct;
-    // 2. Head-to-head
-    const duel=h2h(b.player,a.player);
-    if(duel.b!==duel.a) return duel.b-duel.a;
-    // 3. Total UP margin
-    return b.totalUp-a.totalUp;
-  });
-
-  return rows;
+  return PLAYERS.map(p=>({player:p,pts:pts[p]||0,played:played[p]||0,won:won[p]||0,winPct:winPct(p),totalUp:totalUp[p]||0}))
+    .sort((a,b)=>b.pts-a.pts||b.winPct-a.winPct||b.totalUp-a.totalUp);
 }
 
 // ─── App Shell ────────────────────────────────────────────────────────────────
@@ -622,10 +600,10 @@ function Dashboard({data,save,editDateItem,setEditDateItem}){
           {zsStandings.every(r=>r.played===0)
             ? <div style={{color:"#4b5563",fontFamily:"'DM Sans',sans-serif",fontSize:13}}>Nog geen matches gespeeld.</div>
             : <table><thead><tr><th>Speler</th><th>Win%</th><th>W/L</th></tr></thead>
-              <tbody>{getTiedRank(zsStandings,r=>r.winPct).map(({item:row,medal})=>(
+              <tbody>{getTiedRank(zsStandings,r=>r.pts).map(({item:row,medal})=>(
                 <tr key={row.player}>
                   <td style={{fontWeight:700,color:PC[row.player]}}>{medal} {row.player}</td>
-                  <td style={{fontWeight:700,fontSize:17,color:row.winPct>0.5?"#4ade80":row.winPct<0.5&&row.played>0?"#f87171":"#6b7563"}}>{row.played>0?Math.round(row.winPct*100)+"%":"—"}</td>
+                  <td style={{fontWeight:700,fontSize:17,color:row.pts>0?"#4ade80":row.pts<0?"#f87171":"#6b7563"}}>{row.pts>0?"+":""}{row.pts}</td>
                   <td className="fade">{row.won}/{row.played}</td>
                 </tr>
               ))}</tbody></table>
@@ -708,17 +686,17 @@ function ZeroSumGame({data,save}){
           :<table style={{width:"100%",tableLayout:"fixed"}}><thead><tr>
               <th style={{width:32}}>#</th>
               <th>Speler</th>
-              <th style={{width:56,textAlign:"center"}}>Winst%</th>
-              <th style={{width:50,textAlign:"center"}}>Ges.</th>
+              <th style={{width:48,textAlign:"center"}}>Ptn</th>
+              <th style={{width:52,textAlign:"center"}}>Win%</th>
               <th style={{width:44,textAlign:"center"}}>W</th>
               <th style={{width:44,textAlign:"center"}}>V</th>
             </tr></thead>
-            <tbody>{getTiedRank(standings,r=>r.winPct).map(({item:row,medal})=>(
+            <tbody>{getTiedRank(standings,r=>r.pts).map(({item:row,medal})=>(
               <tr key={row.player}>
                 <td style={{fontFamily:"'DM Sans',sans-serif",fontSize:13}}>{medal}</td>
                 <td style={{fontWeight:700,color:PC[row.player]}}>{row.player}</td>
-                <td style={{fontWeight:700,fontSize:14,color:"#e8e4d8",textAlign:"center"}}>{row.played>0?Math.round(row.winPct*100)+"%":"—"}</td>
-                <td style={{color:"#6b7563",fontFamily:"'DM Sans',sans-serif",textAlign:"center"}}>{row.played}</td>
+                <td style={{fontWeight:700,fontSize:17,color:row.pts>0?"#4ade80":row.pts<0?"#f87171":"#6b7563",textAlign:"center"}}>{row.pts>0?"+":""}{row.pts}</td>
+                <td style={{fontFamily:"'DM Sans',sans-serif",fontSize:12,color:"#6b7563",textAlign:"center"}}>{row.played>0?Math.round(row.winPct*100)+"%":"—"}</td>
                 <td style={{color:"#4ade80",textAlign:"center"}}>{row.won}</td>
                 <td style={{color:"#f87171",textAlign:"center"}}>{row.played-row.won}</td>
               </tr>
