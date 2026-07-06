@@ -1181,9 +1181,27 @@ function SingleTourneyTab({data,save,tourney}){
                 <button onClick={()=>setShowVerslag(v=>({...v,[ed.year]:!v[ed.year]}))} style={{background:"#131a14",border:"1px solid #1e2a1e",borderRadius:6,color:showVerslag[ed.year]?"#e8a838":"#6b7563",fontFamily:"'DM Sans',sans-serif",fontSize:12,padding:"5px 12px",cursor:"pointer",marginBottom:showVerslag[ed.year]?10:0,transition:"all 0.15s"}}>
                   📖 Verslag {showVerslag[ed.year]?"▲":"▼"}
                 </button>
+                {ed.videoUrl&&!showVerslag[ed.year]&&(
+                  <a href={ed.videoUrl} target="_blank" rel="noopener noreferrer"
+                    style={{marginLeft:8,background:"#1e2a3e",border:"1px solid #2a3a4e",color:"#60a5fa",padding:"5px 12px",borderRadius:6,fontFamily:"'DM Sans',sans-serif",fontSize:12,fontWeight:600,cursor:"pointer",display:"inline-flex",alignItems:"center",gap:5,textDecoration:"none"}}>
+                    🎥 Video
+                  </a>
+                )}
                 {showVerslag[ed.year]&&(
-                  <div>
-                    <textarea value={ed.notes||""} onChange={e=>{const newH=history.map(h=>h.year===ed.year?{...h,notes:e.target.value}:h);save({...data,[isMasters?"masters":"usOpen"]:newH});}} className="input" rows={4} style={{marginTop:8}}/>
+                  <div style={{display:"flex",flexDirection:"column",gap:10,marginTop:8}}>
+                    <textarea value={ed.notes||""} onChange={e=>{const newH=history.map(h=>h.year===ed.year?{...h,notes:e.target.value}:h);save({...data,[isMasters?"masters":"usOpen"]:newH});}} className="input" rows={4} placeholder="Verslag van het tornooi..."/>
+                    <div>
+                      <label style={{fontSize:11,color:"#6b7563",fontFamily:"'DM Sans',sans-serif",letterSpacing:1,display:"block",marginBottom:5}}>🎥 VIDEO LINK (Google Photos / YouTube)</label>
+                      <div style={{display:"flex",gap:8}}>
+                        <input className="input" value={ed.videoUrl||""} onChange={e=>{const newH=history.map(h=>h.year===ed.year?{...h,videoUrl:e.target.value}:h);save({...data,[isMasters?"masters":"usOpen"]:newH});}} placeholder="https://photos.google.com/..." style={{flex:1}}/>
+                        {ed.videoUrl&&(
+                          <a href={ed.videoUrl} target="_blank" rel="noopener noreferrer"
+                            style={{background:"#1e2a3e",border:"1px solid #2a3a4e",color:"#60a5fa",padding:"0 14px",borderRadius:8,fontFamily:"'DM Sans',sans-serif",fontSize:13,fontWeight:600,cursor:"pointer",display:"flex",alignItems:"center",gap:6,textDecoration:"none",flexShrink:0,whiteSpace:"nowrap"}}>
+                            🎥 Bekijk video
+                          </a>
+                        )}
+                      </div>
+                    </div>
                   </div>
                 )}
               </div>
