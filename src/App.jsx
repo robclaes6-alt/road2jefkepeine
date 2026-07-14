@@ -154,6 +154,7 @@ const defaultData = {
     "2026": {
       holes: { Rob: [0,1,0,1,1,0,0,0,0,1,0,0,0,0,0,0,0,0], Joost: Array(18).fill(0), Joris: Array(18).fill(0), Thomas: [1,0,1,0,0,0,0,0,0,0,1,0,1,0,1,0,0,1] },
       b2b: { Rob: 1, Joost: 0, Joris: 0, Thomas: 0 },
+      foursomes: { Rob: 0, Joost: 0, Joris: 0, Thomas: 0 },
     },
     "2025": {
       holes: { Rob:[0,1,1,0,1,0,1,1,1,1,1,1,0,0,0,1,0,0], Joost:[0,1,1,0,0,0,1,0,1,1,0,0,0,0,1,0,0,0], Joris:[1,0,1,0,0,0,0,0,0,1,0,1,0,0,0,0,1,0], Thomas:[0,0,1,1,0,0,1,0,0,1,1,1,0,0,1,0,1,0] },
@@ -169,7 +170,8 @@ const defaultData = {
     },
   },
   masters: [
-    {year:2025,results:["Rob","Joost","Thomas","Joris"],scores:{Rob:7,Joost:12,Thomas:22,Joris:19},notes:"27 holes op Millenium met halvering na 18"},
+    {year:2026,results:[],scores:{},notes:"",eventDate:"05/07/2026"},
+    {year:2025,results:["Rob","Joost","Thomas","Joris"],scores:{Rob:7,Joost:12,Thomas:22,Joris:19},notes:"27 holes op Millenium met halvering na 18",eventDate:"01/06/2025"},
     {year:2024,results:["Joost","Thomas","Rob","Joris"],scores:{Joost:6,Thomas:10,Rob:11,Joris:17},notes:"18 holes op Millenium"},
     {year:2023,results:["Joost","Rob","Thomas","Joris"],scores:{Joost:8,Rob:13,Thomas:23,Joris:32},notes:"Hasselt + Millenium 18 holes. Zelfs met de hoogste score ooit op de masters, kon Rob niet winnen. Joost pakt hem met maar liefst 5 strokes."},
     {year:2022,results:["Joost","Rob","Thomas","Joris"],scores:{Joost:13,Rob:19,Thomas:null,Joris:null},notes:"Millenium: 16 + 9 holes. Wintereditie 3 december."},
@@ -528,20 +530,22 @@ function Dashboard({data,save,editDateItem,setEditDateItem}){
   const typeColor={Masters:"#4ade80","US Open":"#60a5fa","Zero Sum":"#e8a838",Score:"#a78bfa",R2B:"#4ade80",Record:"#e8a838",Challenge:"#f472b6"};
 
   const allEvents=[
-    ...data.masters.map(e=>({date:String(e.year),label:"The Masters",winner:e.results[0],type:"Masters",sortDate:new Date(e.year,11,31)})),
-    ...(data.usOpen||[]).map(e=>({date:e.venue?`${e.year} · ${e.venue}`:String(e.year),label:"US Open",winner:e.results[0],type:"US Open",sortDate:new Date(e.year,11,31)})),
+    ...data.masters.map(e=>({date:e.eventDate||String(e.year),label:"The Masters",winner:e.results[0],type:"Masters",sortDate:e.eventDate?parseDate(e.eventDate):new Date(e.year,6,5)})),
+    ...(data.usOpen||[]).map(e=>({date:e.eventDate||(e.venue?`${e.year} · ${e.venue}`:String(e.year)),label:"US Open",winner:e.results[0],type:"US Open",sortDate:e.eventDate?parseDate(e.eventDate):new Date(e.year,6,12)})),
     ...(data.zeroSum||[]).filter(m=>parseDate(m.date)).map(m=>({date:m.date,label:`${m.p1} vs ${m.p2}${m.margin?" ("+m.margin+")":""}`,winner:m.winner,type:"Zero Sum",sortDate:parseDate(m.date)})),
     ...(data.scores||[]).filter(s=>parseDate(s.date)).map(s=>({date:s.date,label:`${s.player} — ${s.course} (${s.holes}H)`,score:s.score,player:s.player,type:"Score",sortDate:parseDate(s.date)})),
     ...(data.r2bLog||[]).filter(e=>parseDate(e.date)).map(e=>e.type==="b2b"
       ? {date:e.date,label:`B2B ${e.player} — back 2 back`,type:"R2B",player:e.player,isBb:true,sortDate:parseDate(e.date)}
+      : e.type==="foursomes"
+      ? {date:e.date,label:`Foursomes ${e.player}`,type:"R2B",player:e.player,isFoursomes:true,sortDate:parseDate(e.date)}
       : {date:e.date,label:`R2B ${e.player} — birdie hole ${e.hole}`,type:"R2B",player:e.player,hole:e.hole,isBb:false,sortDate:parseDate(e.date)}),
     ...(data.challenges||[]).flatMap(c=>PLAYERS.filter(p=>c.done[p]).map(p=>({date:c.doneDates?.[p]||null,label:`Challenge: ${p} — ${c.title}`,type:"Challenge",player:p,challengeTitle:c.title,sortDate:c.doneDates?.[p]?parseDate(c.doneDates[p]):new Date(0)}))),
   ].sort((a,b)=>b.sortDate-a.sortDate);
 
   const recent=allEvents.filter(e=>e.sortDate>=threeMonthsAgo).slice(0,18);
   const feedItems=showAllFeed?allEvents:recent;
-  const visibleItems=showExpanded||showAllFeed?feedItems:feedItems.slice(0,6);
-  const hasMore=!showAllFeed&&feedItems.length>6;
+  const visibleItems=showExpanded||showAllFeed?feedItems:feedItems.slice(0,10);
+  const hasMore=!showAllFeed&&feedItems.length>10;
 
   return(
     <div style={{display:"flex",flexDirection:"column",gap:14}}>
@@ -586,7 +590,7 @@ function Dashboard({data,save,editDateItem,setEditDateItem}){
             </div>
             {hasMore&&(
               <button onClick={()=>setShowExpanded(v=>!v)} style={{marginTop:10,width:"100%",background:"#131a14",border:"1px solid #2a3a2a",borderRadius:7,color:"#6b7563",padding:"7px",fontFamily:"'DM Sans',sans-serif",fontSize:12,cursor:"pointer"}}>
-                {showExpanded?`▲ Minder tonen`:`▼ Nog ${feedItems.length-6} meer tonen`}
+                {showExpanded?`▲ Minder tonen`:`▼ Nog ${feedItems.length-10} meer tonen`}
               </button>
             )}
           </>
@@ -905,12 +909,12 @@ function R2BTab({data,save}){
     const v=Math.max(0,parseInt(val)||0);
     const prev=sd[field]?.[player]||0;
     let newLog=data.r2bLog||[];
-    if(field==="b2b"&&v>prev){
+    if((field==="b2b"||field==="foursomes")&&v>prev){
       const today=new Date();
       const dd=String(today.getDate()).padStart(2,'0');
       const mm=String(today.getMonth()+1).padStart(2,'0');
       const yyyy=today.getFullYear();
-      newLog=[...newLog,{player,type:"b2b",season,date:`${dd}/${mm}/${yyyy}`,id:Date.now()}];
+      newLog=[...newLog,{player,type:field,season,date:`${dd}/${mm}/${yyyy}`,id:Date.now()}];
     }
     save({...data,r2b:{...data.r2b,[season]:{...sd,[field]:{...sd[field],[player]:v}}},r2bLog:newLog});
   };
@@ -997,8 +1001,8 @@ function R2BTab({data,save}){
                 ))}
                 <div style={{display:"flex",gap:9,marginTop:11,flexWrap:"wrap"}}>
                   <Counter label="Back 2 Back" value={sd.b2b?.[player]||0} onChange={v=>updateCounter("b2b",player,v)} color="#e8a838"/>
+                  <Counter label="Foursomes" value={sd.foursomes?.[player]||0} onChange={v=>updateCounter("foursomes",player,v)} color="#f472b6"/>
                   {season!=="2026"&&sd.bestImprRound&&<Counter label="Best Impr." value={sd.bestImprRound[player]||0} onChange={v=>updateCounter("bestImprRound",player,v)} color="#60a5fa"/>}
-                  {season!=="2026"&&sd.foursomes&&<Counter label="Foursomes" value={sd.foursomes[player]||0} onChange={v=>updateCounter("foursomes",player,v)} color="#f472b6"/>}
                 </div>
                 {(()=>{const missing=holes.map((v,i)=>v?null:i+1).filter(Boolean);return missing.length>0&&(
                   <div style={{marginTop:8,fontFamily:"'DM Sans',sans-serif",fontSize:11,color:"#4b5563"}}>
