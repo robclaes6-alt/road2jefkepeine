@@ -1034,8 +1034,67 @@ function Counter({label,value,onChange,color}){
 function R2BHistory({data}){
   const allSeasons=Object.keys(data.r2b).sort().reverse();
   const me=["🥇","🥈","🥉","4️⃣"];
+
+  // All-time hole stats: per hole, per player, how many times birdied across all seasons
+  const holeTotals=Array.from({length:18},(_,i)=>{
+    const perPlayer=Object.fromEntries(PLAYERS.map(p=>[p,allSeasons.reduce((sum,s)=>{
+      return sum+(data.r2b[s]?.holes?.[p]?.[i]||0);
+    },0)]));
+    const total=PLAYERS.reduce((s,p)=>s+perPlayer[p],0);
+    return {hole:i+1, perPlayer, total};
+  });
+
+  // Never birdied per player (across all seasons)
+  const neverBirdied=Object.fromEntries(PLAYERS.map(p=>[
+    p,
+    holeTotals.filter(h=>h.perPlayer[p]===0).map(h=>h.hole)
+  ]));
+
   return(
     <div style={{display:"flex",flexDirection:"column",gap:12}}>
+      {/* All-time hole summary */}
+      <div className="card">
+        <div style={{fontSize:12,color:"#f472b6",fontFamily:"'DM Sans',sans-serif",letterSpacing:2,textTransform:"uppercase",marginBottom:12}}>📊 All-Time Hole Statistieken</div>
+        <div style={{overflowX:"auto"}}>
+          <table style={{minWidth:320}}>
+            <thead><tr>
+              <th>Hole</th>
+              {PLAYERS.map(p=><th key={p} style={{color:PC[p],textAlign:"center"}}>{p}</th>)}
+              <th style={{textAlign:"center",color:"#6b7563"}}>Totaal</th>
+            </tr></thead>
+            <tbody>{holeTotals.map(({hole,perPlayer,total})=>(
+              <tr key={hole} style={{background:total===0?"#0a0a0a":"transparent"}}>
+                <td style={{fontFamily:"'DM Sans',sans-serif",color:"#6b7563",fontSize:12,fontWeight:600}}>H{hole}</td>
+                {PLAYERS.map(p=>(
+                  <td key={p} style={{textAlign:"center",fontFamily:"'DM Sans',sans-serif",fontSize:13}}>
+                    {perPlayer[p]===0
+                      ?<span style={{color:"#2a3a2a"}}>—</span>
+                      :<span style={{color:PC[p],fontWeight:perPlayer[p]>=3?700:400}}>{perPlayer[p]}×</span>
+                    }
+                  </td>
+                ))}
+                <td style={{textAlign:"center",fontFamily:"'DM Sans',sans-serif",fontSize:13,color:total===0?"#3a3a3a":"#8a9a88"}}>{total===0?"❌":total+"×"}</td>
+              </tr>
+            ))}</tbody>
+          </table>
+        </div>
+        {/* Never birdied summary */}
+        <div style={{marginTop:14,borderTop:"1px solid #1e2a1e",paddingTop:12}}>
+          <div style={{fontSize:11,color:"#6b7563",fontFamily:"'DM Sans',sans-serif",letterSpacing:1,textTransform:"uppercase",marginBottom:8}}>Nooit gebirdied (all-time)</div>
+          {PLAYERS.map(p=>(
+            <div key={p} style={{display:"flex",alignItems:"center",gap:8,marginBottom:6,fontFamily:"'DM Sans',sans-serif",fontSize:13}}>
+              <span style={{color:PC[p],fontWeight:700,minWidth:52}}>{p}</span>
+              {neverBirdied[p].length===0
+                ?<span style={{color:"#4ade80",fontSize:12}}>✓ Alle holes gebirdied!</span>
+                :<div style={{display:"flex",gap:4,flexWrap:"wrap"}}>
+                  {neverBirdied[p].map(n=><span key={n} style={{background:"#1a1a1a",border:"1px solid #2a2a2a",borderRadius:4,padding:"1px 6px",color:"#4b5563",fontSize:11}}>{n}</span>)}
+                </div>
+              }
+            </div>
+          ))}
+        </div>
+      </div>
+
       <div className="card">
         <div style={{fontSize:12,color:"#60a5fa",fontFamily:"'DM Sans',sans-serif",letterSpacing:2,textTransform:"uppercase",marginBottom:12}}>Winnaars per Seizoen</div>
         <div style={{overflowX:"auto"}}>
@@ -2105,49 +2164,71 @@ function TornooienTab({data,save,setTab}){
         </div>
       </div>
 
-      {/* Extra Tornooien — Bowling Master, Player of Year, Ternesse Master */}
+      {/* Extra Tornooien */}
       {(()=>{
         const extras = data.extraTornooien||defaultExtraTornooien;
-        const updateExtra=(id,field,val)=>{
-          const newExtras=extras.map(e=>e.id===id?{...e,[field]:val}:e);
-          save({...data,extraTornooien:newExtras});
-        };
-        const addExtraYear=(name)=>{
-          const existing=extras.filter(e=>e.name===name);
-          const maxYear=existing.length?Math.max(...existing.map(e=>e.year)):new Date().getFullYear()-1;
-          save({...data,extraTornooien:[...extras,{id:Date.now(),name,year:maxYear+1,winner:"",notes:""}]});
-        };
+        const updateExtra=(id,field,val)=>save({...data,extraTornooien:extras.map(e=>e.id===id?{...e,[field]:val}:e)});
         const removeExtra=(id)=>save({...data,extraTornooien:extras.filter(e=>e.id!==id)});
-        const categories=["Bowling Master","Player of the Year","Ternesse Master"];
+        const addEntry=(name,year)=>save({...data,extraTornooien:[...extras,{id:Date.now(),name,year:parseInt(year),winner:"",notes:""}]});
+        const removeCategory=(cat)=>save({...data,extraTornooien:extras.filter(e=>e.name!==cat)});
+
+        // Get unique category names in insertion order
+        const categories=[...new Set(extras.map(e=>e.name))];
+
         return(
           <div className="card">
-            <div style={{fontSize:12,color:"#a78bfa",fontFamily:"'DM Sans',sans-serif",letterSpacing:2,textTransform:"uppercase",marginBottom:12}}>🏅 Overige Kampioenen</div>
+            <div style={{fontSize:12,color:"#a78bfa",fontFamily:"'DM Sans',sans-serif",letterSpacing:2,textTransform:"uppercase",marginBottom:14}}>🏅 Overige Kampioenen</div>
+
             {categories.map(cat=>{
               const catExtras=[...extras.filter(e=>e.name===cat)].sort((a,b)=>b.year-a.year);
+              const maxYear=catExtras.length?Math.max(...catExtras.map(e=>e.year)):new Date().getFullYear()-1;
               return(
-                <div key={cat} style={{marginBottom:16}}>
-                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}>
-                    <div style={{fontFamily:"'DM Sans',sans-serif",fontWeight:600,fontSize:13,color:"#e8e4d8"}}>{cat}</div>
-                    <button onClick={()=>addExtraYear(cat)} style={{background:"#131a14",border:"1px solid #2a3a2a",color:"#6b7563",borderRadius:6,padding:"3px 10px",fontFamily:"'DM Sans',sans-serif",fontSize:11,cursor:"pointer"}}>+ Jaar</button>
+                <div key={cat} style={{marginBottom:18,borderBottom:"1px solid #1a2a1a",paddingBottom:14}}>
+                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8,gap:8}}>
+                    <div style={{fontFamily:"'DM Sans',sans-serif",fontWeight:700,fontSize:14,color:"#e8e4d8"}}>{cat}</div>
+                    <div style={{display:"flex",gap:6}}>
+                      <button onClick={()=>addEntry(cat,maxYear+1)}
+                        style={{background:"#1e2a1e",border:"1px solid #2a3a2a",color:"#4ade80",borderRadius:6,padding:"3px 10px",fontFamily:"'DM Sans',sans-serif",fontSize:11,cursor:"pointer"}}>+ Jaar</button>
+                      <button onClick={()=>{ if(window.confirm(`"${cat}" verwijderen inclusief alle edities?`)) removeCategory(cat); }}
+                        style={{background:"none",border:"1px solid #3a1a1a",color:"#f87171",borderRadius:6,padding:"3px 8px",fontFamily:"'DM Sans',sans-serif",fontSize:11,cursor:"pointer"}}>× Verwijder</button>
+                    </div>
                   </div>
-                  {catExtras.length===0&&<div style={{fontFamily:"'DM Sans',sans-serif",fontSize:12,color:"#4b5563"}}>Nog geen winnaar ingevoerd.</div>}
+                  {catExtras.length===0&&<div style={{fontFamily:"'DM Sans',sans-serif",fontSize:12,color:"#4b5563"}}>Nog geen edities.</div>}
                   {catExtras.map(e=>(
-                    <div key={e.id} style={{display:"flex",alignItems:"center",gap:8,padding:"5px 0",borderBottom:"1px solid #131a14",fontFamily:"'DM Sans',sans-serif",fontSize:13}}>
-                      <span style={{color:"#6b7563",minWidth:36}}>{e.year}</span>
+                    <div key={e.id} style={{display:"flex",alignItems:"center",gap:8,padding:"6px 0",borderBottom:"1px solid #131a14",fontFamily:"'DM Sans',sans-serif",fontSize:13,flexWrap:"wrap"}}>
+                      <input type="number" value={e.year} onChange={ev=>updateExtra(e.id,"year",parseInt(ev.target.value))}
+                        style={{background:"#131a14",border:"1px solid #2a3a2a",borderRadius:5,color:"#6b7563",padding:"3px 6px",width:56,fontFamily:"'DM Sans',sans-serif",fontSize:12,textAlign:"center"}}/>
                       <select value={e.winner||""} onChange={ev=>updateExtra(e.id,"winner",ev.target.value)}
-                        style={{background:"#131a14",border:"1px solid #2a3a2a",borderRadius:6,color:PC[e.winner]||"#e8e4d8",padding:"3px 8px",fontFamily:"'DM Sans',sans-serif",fontSize:13,flex:1,maxWidth:120}}>
+                        style={{background:"#131a14",border:"1px solid #2a3a2a",borderRadius:6,color:PC[e.winner]||"#e8e4d8",padding:"3px 8px",fontFamily:"'DM Sans',sans-serif",fontSize:13,minWidth:90}}>
                         <option value="">— winnaar —</option>
                         {PLAYERS.map(p=><option key={p} value={p}>{p}</option>)}
                       </select>
-                      {e.winner&&<span style={{fontWeight:700,color:PC[e.winner]||"#e8e4d8"}}>🏆 {e.winner}</span>}
+                      {e.winner&&<span style={{fontWeight:700,color:PC[e.winner]||"#e8e4d8",flexShrink:0}}>🏆 {e.winner}</span>}
                       <input value={e.notes||""} onChange={ev=>updateExtra(e.id,"notes",ev.target.value)}
-                        placeholder="notitie..." style={{background:"#131a14",border:"1px solid #1e2a1e",borderRadius:5,color:"#8a9a88",padding:"3px 7px",fontFamily:"'DM Sans',sans-serif",fontSize:11,flex:1}}/>
-                      <button onClick={()=>removeExtra(e.id)} style={{background:"none",border:"none",color:"#4b5563",cursor:"pointer",fontSize:15,lineHeight:1}}>×</button>
+                        placeholder="notitie..." style={{background:"#131a14",border:"1px solid #1e2a1e",borderRadius:5,color:"#8a9a88",padding:"3px 7px",fontFamily:"'DM Sans',sans-serif",fontSize:11,flex:1,minWidth:80}}/>
+                      <button onClick={()=>removeExtra(e.id)} style={{background:"none",border:"none",color:"#4b5563",cursor:"pointer",fontSize:15,lineHeight:1,flexShrink:0}}>×</button>
                     </div>
                   ))}
                 </div>
               );
             })}
+
+            {/* Add new category */}
+            {(()=>{
+              const [newCat,setNewCat] = React.useState("");
+              return(
+                <div style={{display:"flex",gap:8,marginTop:4}}>
+                  <input value={newCat} onChange={e=>setNewCat(e.target.value)}
+                    placeholder="Nieuwe competitie (bv. Kamelenkampioen)..."
+                    className="input" style={{flex:1,fontSize:13}}/>
+                  <button onClick={()=>{ if(newCat.trim()){ addEntry(newCat.trim(), new Date().getFullYear()); setNewCat(""); }}}
+                    disabled={!newCat.trim()}
+                    style={{background:newCat.trim()?"#a78bfa":"#1a1a2e",color:newCat.trim()?"#0a0510":"#4b5563",border:"none",borderRadius:8,padding:"0 16px",fontFamily:"'DM Sans',sans-serif",fontWeight:700,fontSize:13,cursor:newCat.trim()?"pointer":"default",flexShrink:0,whiteSpace:"nowrap"}}>
+                    + Toevoegen
+                  </button>
+                </div>
+              );
+            })()}
           </div>
         );
       })()}
