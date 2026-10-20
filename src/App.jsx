@@ -2259,29 +2259,20 @@ function RyderCupTab({data,save}){
                 <span style={{color:"#4b5563"}}>{loseTeam.join(" & ")}</span>
               </div>
             </div>
-            {ed.course&&<div style={{fontFamily:"'DM Sans',sans-serif",fontSize:12,color:"#a78bfa",marginTop:4}}>⛳ {ed.course}</div>}
-            <div style={{marginTop:6}}>
+            <div style={{marginTop:8,display:"flex",flexDirection:"column",gap:6}}>
               <input value={ed.course||""} onChange={e=>{
                 const newData=ryderData.map(r=>r.year===ed.year?{...r,course:e.target.value}:r);
                 save({...data,ryderCup:newData});
-              }} className="input" placeholder="Golfbaan..." style={{fontSize:12,padding:"4px 8px",marginBottom:6}}/>
-            <div style={{marginTop:10}}>
+              }} className="input" placeholder="Golfbaan..." style={{fontSize:12,padding:"4px 8px"}}/>
               <button onClick={()=>setShowVerslag(v=>({...v,[ed.year]:!v[ed.year]}))}
-                style={{background:"#131a14",border:"1px solid #1e2a1e",borderRadius:6,color:showVerslag[ed.year]?"#60a5fa":"#6b7563",fontFamily:"'DM Sans',sans-serif",fontSize:12,padding:"5px 12px",cursor:"pointer",marginBottom:showVerslag[ed.year]?10:0,transition:"all 0.15s"}}>
+                style={{background:"#131a14",border:"1px solid #1e2a1e",borderRadius:6,color:showVerslag[ed.year]?"#60a5fa":"#6b7563",fontFamily:"'DM Sans',sans-serif",fontSize:12,padding:"5px 12px",cursor:"pointer",alignSelf:"flex-start",transition:"all 0.15s"}}>
                 📖 Verslag {showVerslag[ed.year]?"▲":"▼"}
               </button>
               {showVerslag[ed.year]&&(
-                <textarea
-                  value={ed.notes||""}
-                  onChange={e=>{
-                    const newData=ryderData.map(r=>r.year===ed.year?{...r,notes:e.target.value}:r);
-                    save({...data,ryderCup:newData});
-                  }}
-                  className="input"
-                  rows={3}
-                  placeholder="Verslag van de Ryder Cup editie..."
-                  style={{marginTop:8}}
-                />
+                <textarea value={ed.notes||""} onChange={e=>{
+                  const newData=ryderData.map(r=>r.year===ed.year?{...r,notes:e.target.value}:r);
+                  save({...data,ryderCup:newData});
+                }} className="input" rows={3} placeholder="Verslag van de Ryder Cup editie..."/>
               )}
             </div>
           </div>
